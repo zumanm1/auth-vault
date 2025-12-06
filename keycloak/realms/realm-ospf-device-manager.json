@@ -1,0 +1,240 @@
+{
+  "id": "ospf-device-manager",
+  "realm": "ospf-device-manager",
+  "displayName": "OSPF Device Manager",
+  "displayNameHtml": "<div class=\"kc-logo-text\"><span>OSPF Device Manager</span></div>",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "passwordPolicy": "length(12) and upperCase(1) and lowerCase(1) and digits(1) and specialChars(1) and notUsername and passwordHistory(5)",
+  "defaultSignatureAlgorithm": "RS256",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "accessCodeLifespan": 60,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administrator role with full access",
+        "composite": false
+      },
+      {
+        "name": "operator",
+        "description": "Operator with device management and automation access",
+        "composite": false
+      },
+      {
+        "name": "viewer",
+        "description": "Read-only access to devices and status",
+        "composite": false
+      }
+    ],
+    "client": {
+      "device-manager-api": [
+        {
+          "name": "devices:read",
+          "description": "Read device information"
+        },
+        {
+          "name": "devices:write",
+          "description": "Create and modify devices"
+        },
+        {
+          "name": "devices:delete",
+          "description": "Delete devices"
+        },
+        {
+          "name": "automation:execute",
+          "description": "Execute automation jobs"
+        },
+        {
+          "name": "automation:manage",
+          "description": "Create and modify automation jobs"
+        },
+        {
+          "name": "ssh:connect",
+          "description": "SSH connect to devices"
+        },
+        {
+          "name": "ssh:execute",
+          "description": "Execute SSH commands"
+        },
+        {
+          "name": "jumphost:manage",
+          "description": "Manage jumphost configuration"
+        },
+        {
+          "name": "settings:manage",
+          "description": "Manage application settings"
+        },
+        {
+          "name": "users:manage",
+          "description": "Manage users (admin only)"
+        },
+        {
+          "name": "database:manage",
+          "description": "Database operations (admin only)"
+        }
+      ]
+    }
+  },
+  "groups": [
+    {
+      "name": "Administrators",
+      "path": "/Administrators",
+      "realmRoles": ["admin"]
+    },
+    {
+      "name": "Operators",
+      "path": "/Operators",
+      "realmRoles": ["operator"]
+    },
+    {
+      "name": "Viewers",
+      "path": "/Viewers",
+      "realmRoles": ["viewer"]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "device-manager-frontend",
+      "name": "OSPF Device Manager Frontend",
+      "description": "React frontend application",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": true,
+      "rootUrl": "http://localhost:9050",
+      "baseUrl": "/",
+      "redirectUris": [
+        "http://localhost:9050/*",
+        "http://127.0.0.1:9050/*"
+      ],
+      "webOrigins": [
+        "http://localhost:9050",
+        "http://127.0.0.1:9050"
+      ],
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:9050/*"
+      }
+    },
+    {
+      "clientId": "device-manager-api",
+      "name": "OSPF Device Manager API",
+      "description": "FastAPI backend server",
+      "enabled": true,
+      "publicClient": false,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "rootUrl": "http://localhost:9051",
+      "redirectUris": [
+        "http://localhost:9051/*"
+      ],
+      "webOrigins": [
+        "http://localhost:9051"
+      ],
+      "protocol": "openid-connect",
+      "secret": "${APP5_CLIENT_SECRET}"
+    },
+    {
+      "clientId": "vault-oidc",
+      "name": "Vault OIDC Integration",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "rootUrl": "http://localhost:8200",
+      "redirectUris": [
+        "http://localhost:8200/ui/vault/auth/oidc/oidc/callback",
+        "http://localhost:8250/oidc/callback"
+      ],
+      "protocol": "openid-connect",
+      "secret": "${VAULT_OIDC_SECRET}"
+    }
+  ],
+  "users": [
+    {
+      "username": "devmgr-admin",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "devmgr-admin@ospf.local",
+      "firstName": "Device Manager",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe!Admin2025",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["admin"],
+      "groups": ["/Administrators"]
+    },
+    {
+      "username": "devmgr-operator",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "devmgr-operator@ospf.local",
+      "firstName": "Device Manager",
+      "lastName": "Operator",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe!Operator2025",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["operator"],
+      "groups": ["/Operators"]
+    },
+    {
+      "username": "devmgr-viewer",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "devmgr-viewer@ospf.local",
+      "firstName": "Device Manager",
+      "lastName": "Viewer",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe!Viewer2025",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["viewer"],
+      "groups": ["/Viewers"]
+    }
+  ],
+  "browserSecurityHeaders": {
+    "contentSecurityPolicyReportOnly": "",
+    "xContentTypeOptions": "nosniff",
+    "xRobotsTag": "none",
+    "xFrameOptions": "SAMEORIGIN",
+    "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+    "xXSSProtection": "1; mode=block",
+    "strictTransportSecurity": "max-age=31536000; includeSubDomains"
+  },
+  "eventsEnabled": true,
+  "eventsListeners": ["jboss-logging"],
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true
+}

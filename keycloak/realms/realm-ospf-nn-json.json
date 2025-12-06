@@ -1,0 +1,193 @@
+{
+  "id": "ospf-nn-json",
+  "realm": "ospf-nn-json",
+  "displayName": "OSPF NN JSON (Visualizer Pro)",
+  "displayNameHtml": "<div class=\"kc-logo-text\"><span>OSPF Visualizer Pro</span></div>",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "passwordPolicy": "length(12) and upperCase(1) and lowerCase(1) and digits(1) and specialChars(1) and notUsername and passwordHistory(5)",
+  "defaultSignatureAlgorithm": "RS256",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "accessCodeLifespan": 60,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administrator role with full access",
+        "composite": false
+      },
+      {
+        "name": "user",
+        "description": "Standard user with limited access",
+        "composite": false
+      }
+    ],
+    "client": {
+      "visualizer-pro-api": [
+        {
+          "name": "topology:read",
+          "description": "Read topology data"
+        },
+        {
+          "name": "topology:write",
+          "description": "Create and modify topology"
+        },
+        {
+          "name": "scenarios:manage",
+          "description": "Manage failure scenarios"
+        },
+        {
+          "name": "settings:manage",
+          "description": "Manage application settings"
+        },
+        {
+          "name": "users:manage",
+          "description": "Manage users (admin only)"
+        },
+        {
+          "name": "links:manage",
+          "description": "Manage custom links"
+        }
+      ]
+    }
+  },
+  "groups": [
+    {
+      "name": "Administrators",
+      "path": "/Administrators",
+      "realmRoles": ["admin"]
+    },
+    {
+      "name": "Users",
+      "path": "/Users",
+      "realmRoles": ["user"]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "visualizer-pro-frontend",
+      "name": "OSPF Visualizer Pro Frontend",
+      "description": "React frontend application",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": true,
+      "rootUrl": "http://localhost:9080",
+      "baseUrl": "/",
+      "redirectUris": [
+        "http://localhost:9080/*",
+        "http://127.0.0.1:9080/*"
+      ],
+      "webOrigins": [
+        "http://localhost:9080",
+        "http://127.0.0.1:9080"
+      ],
+      "protocol": "openid-connect",
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:9080/*"
+      }
+    },
+    {
+      "clientId": "visualizer-pro-api",
+      "name": "OSPF Visualizer Pro API",
+      "description": "Backend API server",
+      "enabled": true,
+      "publicClient": false,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "rootUrl": "http://localhost:9081",
+      "redirectUris": [
+        "http://localhost:9081/*"
+      ],
+      "webOrigins": [
+        "http://localhost:9081"
+      ],
+      "protocol": "openid-connect",
+      "secret": "${APP3_CLIENT_SECRET}"
+    },
+    {
+      "clientId": "vault-oidc",
+      "name": "Vault OIDC Integration",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "rootUrl": "http://localhost:8200",
+      "redirectUris": [
+        "http://localhost:8200/ui/vault/auth/oidc/oidc/callback",
+        "http://localhost:8250/oidc/callback"
+      ],
+      "protocol": "openid-connect",
+      "secret": "${VAULT_OIDC_SECRET}"
+    }
+  ],
+  "users": [
+    {
+      "username": "visualizer-admin",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "visualizer-admin@ospf.local",
+      "firstName": "Visualizer",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe!Admin2025",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["admin"],
+      "groups": ["/Administrators"]
+    },
+    {
+      "username": "visualizer-user",
+      "enabled": true,
+      "emailVerified": true,
+      "email": "visualizer-user@ospf.local",
+      "firstName": "Visualizer",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMe!User2025",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["user"],
+      "groups": ["/Users"]
+    }
+  ],
+  "browserSecurityHeaders": {
+    "contentSecurityPolicyReportOnly": "",
+    "xContentTypeOptions": "nosniff",
+    "xRobotsTag": "none",
+    "xFrameOptions": "SAMEORIGIN",
+    "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+    "xXSSProtection": "1; mode=block",
+    "strictTransportSecurity": "max-age=31536000; includeSubDomains"
+  },
+  "eventsEnabled": true,
+  "eventsListeners": ["jboss-logging"],
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true
+}

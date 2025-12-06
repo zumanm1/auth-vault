@@ -1,0 +1,146 @@
+version: '3.9'
+
+# ============================================================================
+# OSPF Application Suite - Centralized Auth Infrastructure
+# Keycloak (6 Realms) + Vault (6 Namespaces/Mount Paths)
+# ============================================================================
+
+services:
+  # ==========================================================================
+  # PostgreSQL Database for Keycloak
+  # ==========================================================================
+  keycloak-db:
+    image: postgres:16-alpine
+    container_name: keycloak-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD:-keycloak_db_password_change_me}
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+    networks:
+      - auth-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # Keycloak Identity Provider
+  # Single cluster with 6 isolated realms for each app
+  # ==========================================================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.3
+    container_name: keycloak
+    restart: unless-stopped
+    command: start-dev --import-realm
+    environment:
+      # Admin credentials - CHANGE IN PRODUCTION
+      KEYCLOAK_ADMIN: ${KC_ADMIN_USER:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-admin_change_me_in_production}
+
+      # Database connection
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD:-keycloak_db_password_change_me}
+
+      # Server configuration
+      KC_HOSTNAME: ${KC_HOSTNAME:-localhost}
+      KC_HOSTNAME_PORT: ${KC_PORT:-8080}
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+      KC_HTTP_ENABLED: true
+      KC_PROXY: edge
+
+      # Features
+      KC_FEATURES: token-exchange,admin-fine-grained-authz
+      KC_HEALTH_ENABLED: true
+      KC_METRICS_ENABLED: true
+    ports:
+      - "${KC_PORT:-8080}:8080"
+    volumes:
+      - ./keycloak/realms:/opt/keycloak/data/import:ro
+      - ./keycloak/themes:/opt/keycloak/themes:ro
+    networks:
+      - auth-network
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\n\r\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ==========================================================================
+  # HashiCorp Vault Secrets Manager
+  # Single cluster with mount paths for each app (OSS version)
+  # For Enterprise, use namespaces instead
+  # ==========================================================================
+  vault:
+    image: hashicorp/vault:1.15.4
+    container_name: vault
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_TOKEN:-vault-root-token-change-me}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_ADDR: http://127.0.0.1:8200
+      VAULT_API_ADDR: http://127.0.0.1:8200
+    ports:
+      - "${VAULT_PORT:-8200}:8200"
+    volumes:
+      - vault_data:/vault/data
+      - vault_logs:/vault/logs
+      - ./vault/config:/vault/config:ro
+      - ./vault/policies:/vault/policies:ro
+    networks:
+      - auth-network
+    command: server -dev -dev-root-token-id=${VAULT_DEV_TOKEN:-vault-root-token-change-me}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:8200/v1/sys/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # Vault Initialization Sidecar
+  # Configures all mount paths, policies, and OIDC auth for each app
+  # ==========================================================================
+  vault-init:
+    image: hashicorp/vault:1.15.4
+    container_name: vault-init
+    depends_on:
+      vault:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_TOKEN:-vault-root-token-change-me}
+      KC_URL: http://keycloak:8080
+    volumes:
+      - ./vault/init-scripts:/scripts:ro
+      - ./vault/policies:/policies:ro
+    networks:
+      - auth-network
+    entrypoint: ["/bin/sh", "/scripts/init-vault.sh"]
+    restart: "no"
+
+networks:
+  auth-network:
+    driver: bridge
+    name: ospf-auth-network
+
+volumes:
+  keycloak_db_data:
+    name: ospf-keycloak-db
+  vault_data:
+    name: ospf-vault-data
+  vault_logs:
+    name: ospf-vault-logs

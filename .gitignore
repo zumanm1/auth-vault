@@ -1,0 +1,47 @@
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+
+# Vault data (sensitive)
+vault/data/
+vault/logs/
+
+# Keycloak database backups
+keycloak/backups/
+
+# Local development files
+*.log
+*.pid
+.DS_Store
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node modules (if any scripts use Node)
+node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
+.venv/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Generated credentials files
+.vault-credentials
+*.secret
+*.key
+
+# Docker volumes (if not using named volumes)
+data/
+
+# Backup files
+*.bak
+*.backup
