@@ -13,7 +13,7 @@ Auth-Vault provides centralized authentication (Keycloak) and secrets management
 │                                                                                  │
 │  ┌──────────────────────────────────┐  ┌──────────────────────────────────────┐ │
 │  │          KEYCLOAK                │  │            VAULT                      │ │
-│  │          Port 8080               │  │           Port 8200                   │ │
+│  │          Port 9120               │  │           Port 9121                   │ │
 │  │                                  │  │                                       │ │
 │  │  ┌─────────────────────────┐     │  │  ┌─────────────────────────────────┐ │ │
 │  │  │ ospf-impact-planner     │     │  │  │ ospf-impact-planner/            │ │ │
@@ -52,10 +52,10 @@ Auth-Vault provides centralized authentication (Keycloak) and secrets management
 │  │  │ (Realm)                 │     │  │  │ └── approle                     │ │ │
 │  │  │ ├── devmgr-admin        │     │  │  └─────────────────────────────────┘ │ │
 │  │  │ ├── devmgr-operator     │     │  │                                       │ │
-│  │  │ ├── devmgr-viewer       │     │  │  ┌─────────────────────────────────┐ │ │
-│  │  │ └── Clients             │     │  │  │ ospf-shared/                    │ │ │
-│  │  └─────────────────────────┘     │  │  │ └── keycloak (client secrets)   │ │ │
-│  │                                  │  │  └─────────────────────────────────┘ │ │
+│  │  │ ├── devmgr-viewer       │     │  │                                       │ │
+│  │  │ └── Clients             │     │  │                                       │ │
+│  │  └─────────────────────────┘     │  │                                       │ │
+│  │                                  │  │                                       │ │
 │  └──────────────────────────────────┘  └──────────────────────────────────────┘ │
 │                                                                                  │
 └─────────────────────────────────────────────────────────────────────────────────┘
@@ -63,62 +63,63 @@ Auth-Vault provides centralized authentication (Keycloak) and secrets management
 
 ## Applications Covered
 
-| App | Directory | Frontend Port | Backend Port | Realm |
-|-----|-----------|---------------|--------------|-------|
-| OSPF Impact Planner | `/Users/macbook/OSPF-IMPACT-planner` | 9090 | 9091 | ospf-impact-planner |
-| NetViz Pro (LL-JSON-Part1) | `/Users/macbook/OSPF-LL-JSON-PART1` | 9040 | 9041 | ospf-ll-json-part1 |
-| OSPF Visualizer Pro (NN-JSON) | `/Users/macbook/OSPF-NN-JSON` | 9080 | 9081 | ospf-nn-json |
-| OSPF Tempo-X | `/Users/macbook/OSPF-TEMPO-X` | 9100 | 9101 | ospf-tempo-x |
-| OSPF Device Manager | `/Users/macbook/OSPF-LL-DEVICE_MANAGER` | 9050 | 9051 | ospf-device-manager |
+| App | Directory | Frontend Port | Backend Port | Realm | Status |
+|-----|-----------|---------------|--------------|-------|--------|
+| OSPF Impact Planner | `OSPF-IMPACT-planner Private` | 9090 | 9091 | ospf-impact-planner | ✅ Integrated |
+| NetViz Pro (LL-JSON-Part1) | `OSPF-LL-JSON-PART1` | 9040 | 9041 | ospf-ll-json-part1 | ✅ Integrated |
+| OSPF Visualizer Pro (NN-JSON) | `OSPF-NN-JSON` | 9080 | 9081 | ospf-nn-json | ✅ Integrated |
+| OSPF Tempo-X | `OSPF-TEMPO-X` | 9100 | 9101 | ospf-tempo-x | ✅ Integrated |
+| OSPF Device Manager | `OSPF-LL-DEVICE_MANAGER` | 9050 | 9051 | ospf-device-manager | ✅ Integrated |
 
-## Quick Start
+## Quick Start (Native Installation - No Docker)
 
 ### Prerequisites
 
-- Docker & Docker Compose
-- Node.js 18+ (for apps)
+- macOS (Homebrew), Ubuntu/Debian (apt), or RHEL/CentOS (yum)
+- Node.js 18+ (for Node.js apps)
 - Python 3.11+ (for Device Manager)
+- Java 17+ (for Keycloak)
 
-### 1. Start Auth-Vault Infrastructure
+### 1. Install and Start Auth-Vault
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/auth-vault.git
+git clone https://github.com/zumanm1/auth-vault.git
 cd auth-vault
 
-# Copy and configure environment
-cp .env.example .env
-# Edit .env with secure passwords
+# Install Keycloak and Vault natively
+./auth-vault.sh install
 
 # Start services
-docker-compose up -d
+./auth-vault.sh start
 
-# Wait for services to be ready
-docker-compose logs -f keycloak  # Wait for "Running the server in development mode"
+# Check status
+./auth-vault.sh status
 ```
 
 ### 2. Access Admin Consoles
 
-- **Keycloak Admin**: http://localhost:8080/admin
-  - Default: admin / admin_change_me_in_production
-- **Vault UI**: http://localhost:8200/ui
-  - Default Token: vault-root-token-change-me
+- **Keycloak Admin**: http://localhost:9120/admin
+  - Default: admin / admin
+- **Vault UI**: http://localhost:9121/ui
+  - Use root token from installation output
 
-### 3. Verify Vault Initialization
+### 3. Verify Installation
 
 ```bash
-# Check Vault status
-docker exec vault vault status
+# Check Keycloak health
+curl http://localhost:9120/health/ready
 
-# List secret mounts
-docker exec vault vault secrets list
+# Check Vault status
+curl http://localhost:9121/v1/sys/health
 ```
 
 ## Directory Structure
 
 ```
 auth-vault/
-├── docker-compose.yml          # Main infrastructure
+├── auth-vault.sh              # Native installation & management script
+├── docker-compose.yml         # Alternative Docker setup
 ├── .env.example               # Environment template
 ├── .env                       # Local configuration (gitignored)
 ├── keycloak/
@@ -150,6 +151,31 @@ auth-vault/
     └── MIGRATION-GUIDE.md     # Migration steps
 ```
 
+## Management Commands
+
+```bash
+# Installation
+./auth-vault.sh install         # Install Keycloak and Vault
+
+# Service Management
+./auth-vault.sh start           # Start both services
+./auth-vault.sh stop            # Stop both services
+./auth-vault.sh status          # Check service status
+./auth-vault.sh restart         # Restart both services
+
+# Individual Services
+./auth-vault.sh start-keycloak  # Start only Keycloak
+./auth-vault.sh start-vault     # Start only Vault
+./auth-vault.sh stop-keycloak   # Stop only Keycloak
+./auth-vault.sh stop-vault      # Stop only Vault
+
+# Realm Management
+./auth-vault.sh create-realms   # Create all 5 OSPF realms
+
+# Uninstall
+./auth-vault.sh uninstall       # Remove installations
+```
+
 ## Security Features
 
 ### Keycloak Features
@@ -166,7 +192,7 @@ auth-vault/
 - **Transit Encryption**: AES-256-GCM for sensitive data
 - **Strict Policies**: Apps can only access their own secrets
 - **Audit Logging**: All secret access logged
-- **Dynamic Secrets**: Support for database credentials (future)
+- **KV-V2 Secret Engine**: Versioned secrets per app
 
 ## Default Credentials
 
@@ -174,7 +200,7 @@ auth-vault/
 
 ### Keycloak Admin
 - Username: `admin`
-- Password: `admin_change_me_in_production`
+- Password: `admin` (change immediately!)
 
 ### Per-Realm Default Users
 
@@ -192,49 +218,61 @@ auth-vault/
 | ospf-device-manager | devmgr-operator | ChangeMe!Operator2025 | operator |
 | ospf-device-manager | devmgr-viewer | ChangeMe!Viewer2025 | viewer |
 
-## Integrating an Application
+## Integration Details
 
-### Step 1: Get AppRole Credentials
+Each application has been integrated with the following components:
+
+### Backend Integration (per app)
+
+| File | Purpose |
+|------|---------|
+| `keycloak-verifier.ts/js/py` | JWT token verification via JWKS (RS256) |
+| `vault-client.ts/js/py` | AppRole authentication & secrets fetching |
+| `auth-unified.ts/js/py` | Hybrid auth middleware (legacy + Keycloak) |
+
+### API Endpoints (per app)
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/auth/config` | Returns auth mode (legacy/keycloak) and Keycloak config for frontend |
+| `GET /api/health` | Includes `authVault` and `authMode` status |
+
+### Environment Variables (per app)
 
 ```bash
-# From Vault, get credentials for your app
-export VAULT_ADDR="http://localhost:8200"
-export VAULT_TOKEN="your-root-token"
+# Keycloak Configuration
+KEYCLOAK_URL=http://localhost:9120
+KEYCLOAK_REALM=<app-specific-realm>
+KEYCLOAK_CLIENT_ID=<app-specific-client>
 
-# Get Role ID
-vault read auth/approle/role/ospf-impact-planner/role-id
-
-# Generate Secret ID
-vault write -f auth/approle/role/ospf-impact-planner/secret-id
+# Vault Configuration
+VAULT_ADDR=http://localhost:9121
+VAULT_ROLE_ID=<from-vault-init>
+VAULT_SECRET_ID=<from-vault-init>
+# OR use token auth:
+VAULT_TOKEN=<vault-token>
 ```
 
-### Step 2: Install SDK
+## Authentication Modes
 
-**Node.js:**
-```bash
-npm install keycloak-js node-vault
-```
+Each app supports dual authentication modes:
 
-**Python:**
-```bash
-pip install python-keycloak hvac
-```
+### Legacy Mode
+- Uses existing JWT authentication
+- Default when Keycloak is unavailable
+- Sessions managed locally
 
-### Step 3: Follow App-Specific Guide
-
-See the README-AUTH-VAULT.md in each app's directory:
-
-- [OSPF Impact Planner](./apps/impact-planner/README-AUTH-VAULT.md)
-- [NetViz Pro](./apps/ll-json-part1/README-AUTH-VAULT.md)
-- [OSPF Visualizer Pro](./apps/nn-json/README-AUTH-VAULT.md)
-- [OSPF Tempo-X](./apps/tempo-x/README-AUTH-VAULT.md)
-- [OSPF Device Manager](./apps/device-manager/README-AUTH-VAULT.md)
+### Keycloak Mode (Auth-Vault)
+- SSO via Keycloak OIDC
+- JWT tokens verified via JWKS
+- Centralized session management
+- Automatic mode detection on startup
 
 ## Production Deployment
 
 ### Security Hardening
 
-1. **Change all default passwords** (Keycloak admin, Vault root token)
+1. **Change all default passwords** (Keycloak admin, realm users)
 2. **Enable HTTPS** for all services
 3. **Configure proper CORS origins**
 4. **Restrict network access** with IP whitelists
@@ -242,32 +280,17 @@ See the README-AUTH-VAULT.md in each app's directory:
 6. **Use proper Vault unsealing** (not dev mode)
 7. **Backup encryption keys** securely
 
-### Environment Variables
-
-```bash
-# Production .env
-KC_ADMIN_PASSWORD=<strong-random-password>
-KC_DB_PASSWORD=<strong-random-password>
-VAULT_DEV_TOKEN=<DO-NOT-USE-IN-PRODUCTION>
-
-# For production Vault, use:
-# - Shamir key unsealing
-# - Auto-unseal with cloud KMS
-# - HA cluster with Raft storage
-```
-
 ### HTTPS Configuration
 
-```yaml
-# docker-compose.override.yml for production
-services:
-  keycloak:
-    environment:
-      KC_HOSTNAME_STRICT_HTTPS: true
-      KC_HTTPS_CERTIFICATE_FILE: /etc/x509/https/tls.crt
-      KC_HTTPS_CERTIFICATE_KEY_FILE: /etc/x509/https/tls.key
-    volumes:
-      - /path/to/certs:/etc/x509/https:ro
+For production, configure TLS certificates:
+
+```bash
+# Keycloak with HTTPS
+export KC_HTTPS_CERTIFICATE_FILE=/path/to/tls.crt
+export KC_HTTPS_CERTIFICATE_KEY_FILE=/path/to/tls.key
+
+# Vault with HTTPS
+export VAULT_ADDR=https://localhost:9121
 ```
 
 ## Troubleshooting
@@ -276,37 +299,53 @@ services:
 
 ```bash
 # Check logs
-docker-compose logs keycloak
+tail -f ~/.keycloak/logs/keycloak.log
 
 # Common issues:
-# - Database not ready: Wait for keycloak-db health check
-# - Port conflict: Change KC_PORT in .env
-# - Memory: Increase Docker memory allocation
+# - Port 9120 in use: lsof -i :9120
+# - Java not installed: java -version
+# - Memory issues: Increase heap size
 ```
 
 ### Vault Initialization Failed
 
 ```bash
-# Check init script logs
-docker-compose logs vault-init
+# Check Vault status
+./auth-vault.sh status
 
-# Manual initialization
-docker exec -it vault sh
-vault secrets list
-vault auth list
+# Manual check
+export VAULT_ADDR=http://localhost:9121
+vault status
 ```
 
-### CORS Errors
+### App Can't Connect to Auth-Vault
 
-1. Check Keycloak client's "Web Origins" configuration
-2. Verify backend CORS configuration
-3. Check browser developer tools for specific error
+```bash
+# Verify services are running
+./auth-vault.sh status
+
+# Check Keycloak realm exists
+curl http://localhost:9120/realms/<realm-name>
+
+# Check Vault mount exists
+curl -H "X-Vault-Token: <token>" http://localhost:9121/v1/sys/mounts
+```
 
 ### Token Validation Fails
 
-1. Verify JWKS endpoint accessible: `curl http://localhost:8080/realms/{realm}/protocol/openid-connect/certs`
+1. Verify JWKS endpoint accessible: `curl http://localhost:9120/realms/{realm}/protocol/openid-connect/certs`
 2. Check token issuer matches configuration
 3. Verify clock sync between services
+
+## App-Specific Documentation
+
+See the README-AUTH-VAULT.md in each app's directory:
+
+- [OSPF Impact Planner](./apps/impact-planner/README-AUTH-VAULT.md)
+- [NetViz Pro](./apps/ll-json-part1/README-AUTH-VAULT.md)
+- [OSPF Visualizer Pro](./apps/nn-json/README-AUTH-VAULT.md)
+- [OSPF Tempo-X](./apps/tempo-x/README-AUTH-VAULT.md)
+- [OSPF Device Manager](./apps/device-manager/README-AUTH-VAULT.md)
 
 ## Contributing
 

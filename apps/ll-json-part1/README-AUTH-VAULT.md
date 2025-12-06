@@ -1,8 +1,8 @@
-# Auth-Vault Integration Guide: OSPF LL-JSON-PART1 (NetViz Pro)
+# Auth-Vault Integration: NetViz Pro (OSPF-LL-JSON-PART1)
 
-## Overview
+## Status: ✅ INTEGRATED
 
-This document describes how to integrate the NetViz Pro application with the centralized Keycloak + Vault security infrastructure.
+This application has been fully integrated with the Auth-Vault infrastructure (Keycloak + HashiCorp Vault).
 
 ## Architecture
 
@@ -12,28 +12,28 @@ This document describes how to integrate the NetViz Pro application with the cen
 ├─────────────────────────────────────────────────────────────────┤
 │  Gateway (Port 9040)     │  Auth Server (Port 9041)             │
 │  ┌──────────────┐        │  ┌──────────────┐                    │
-│  │ Session      │────────┼──│ Keycloak     │                    │
-│  │ Validation   │        │  │ OIDC Client  │                    │
+│  │ Static Files │        │  │ keycloak-    │                    │
+│  │ + Proxy      │────────┼──│ verifier.js  │                    │
 │  └──────────────┘        │  └──────────────┘                    │
-│         │                │         │                            │
-│         │                │         ▼                            │
-│         │                │  ┌──────────────┐                    │
-│         │                │  │ Vault Client │                    │
-│         ▼                │  │ (Secrets)    │                    │
-│  ┌──────────────┐        │  └──────────────┘                    │
-│  │ Vite Server  │        │         │                            │
-│  │ (Port 9042)  │        │         ▼                            │
-│  └──────────────┘        │  ┌──────────────┐                    │
-│                          │  │   SQLite     │                    │
-│                          │  │   users.db   │                    │
+│                          │         │                            │
+│                          │         ▼                            │
+│                          │  ┌──────────────┐                    │
+│                          │  │ auth-unified │                    │
+│                          │  │     .js      │                    │
+│                          │  └──────────────┘                    │
+│                          │         │                            │
+│                          │         ▼                            │
+│                          │  ┌──────────────┐                    │
+│                          │  │ vault-client │                    │
+│                          │  │     .js      │                    │
 │                          │  └──────────────┘                    │
 └─────────────────────────────────────────────────────────────────┘
                                      │
                   ┌──────────────────┼──────────────────┐
-                  ▼                  ▼                  ▼
+                  ▼                  ▼
           ┌──────────────┐   ┌──────────────┐
           │   Keycloak   │   │    Vault     │
-          │   Port 8080  │   │   Port 8200  │
+          │   Port 9120  │   │   Port 9121  │
           │              │   │              │
           │ Realm:       │   │ Mount:       │
           │ ospf-ll-     │   │ ospf-ll-     │
@@ -41,315 +41,186 @@ This document describes how to integrate the NetViz Pro application with the cen
           └──────────────┘   └──────────────┘
 ```
 
-## Keycloak Configuration
+## Integrated Components
 
-### Realm Details
+### Backend Files Added
+
+| File | Purpose |
+|------|---------|
+| `server/lib/keycloak-verifier.js` | JWT token verification via JWKS (RS256) |
+| `server/lib/vault-client.js` | AppRole authentication & secrets fetching |
+| `server/lib/auth-unified.js` | Hybrid auth middleware (legacy + Keycloak) |
+
+### API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/auth/config` | GET | Returns auth mode and Keycloak config for frontend |
+| `/api/health` | GET | Includes `authVault` and `authMode` status |
+
+## Configuration
+
+### Environment Variables
+
+```bash
+# Keycloak Configuration
+KEYCLOAK_URL=http://localhost:9120
+KEYCLOAK_REALM=ospf-ll-json-part1
+KEYCLOAK_CLIENT_ID=netviz-pro-api
+
+# Vault Configuration
+VAULT_ADDR=http://localhost:9121
+VAULT_ROLE_ID=<from-vault-init>
+VAULT_SECRET_ID=<from-vault-init>
+# OR use token auth:
+VAULT_TOKEN=<vault-token>
+```
+
+### Keycloak Realm Details
+
 - **Realm Name**: `ospf-ll-json-part1`
-- **Keycloak URL**: `http://localhost:8080`
+- **Frontend Client**: `netviz-pro-frontend` (Public, PKCE)
+- **Backend Client**: `netviz-pro-api` (Confidential)
 
-### Clients
-
-| Client ID | Type | Purpose |
-|-----------|------|---------|
-| `netviz-pro-frontend` | Public | React SPA (PKCE flow) |
-| `netviz-pro-api` | Confidential | Backend API (service account) |
-| `vault-oidc` | Confidential | Vault OIDC integration |
-
-### Roles
-
-| Role | Description | Permissions |
-|------|-------------|-------------|
-| `admin` | Full administrative access | All operations, user management |
-| `user` | Standard user | topology operations, export |
-
-### Default Users (Change on first login!)
+### Default Users
 
 | Username | Password | Role |
 |----------|----------|------|
 | `netviz-admin` | `ChangeMe!Admin2025` | admin |
 | `netviz-user` | `ChangeMe!User2025` | user |
 
-## Vault Configuration
-
-### Secret Paths
+### Vault Secret Paths
 
 | Path | Description |
 |------|-------------|
-| `ospf-ll-json-part1/config` | JWT secret, session secret, admin reset PIN |
-| `ospf-ll-json-part1/database` | Database path configuration |
-| `ospf-ll-json-part1/approle` | AppRole credentials for service account |
+| `ospf-ll-json-part1/config` | JWT secret, session secret |
+| `ospf-ll-json-part1/database` | Database configuration |
 
-### Transit Encryption Keys
+## Authentication Modes
 
-| Key | Type | Purpose |
-|-----|------|---------|
-| `jwt-signing` | RSA-4096 | JWT token signing |
-| `data-encryption` | AES-256-GCM | Sensitive data encryption |
-| `session-key` | AES-256-GCM | Session token encryption |
+The application supports dual authentication:
 
-## Integration Steps
+### 1. Keycloak Mode (Auth-Vault)
+- Activated when Keycloak is available at startup
+- SSO via OIDC with PKCE
+- JWT verified via JWKS (RS256)
 
-### 1. Remove Hardcoded Secrets
+### 2. Legacy Mode (Fallback)
+- Activated when Keycloak is unavailable
+- Uses existing JWT authentication
+- Local SQLite user database
 
-**CRITICAL**: Remove these from `.env.local`:
-- `APP_SECRET_KEY` → Fetch from Vault
-- `ADMIN_RESET_PIN` → Fetch from Vault
-- `APP_ADMIN_PASSWORD` → Use Keycloak authentication
+## How It Works
 
-### 2. Update Gateway Server
-
-Modify `server/gateway.js`:
+### Startup Sequence
 
 ```javascript
-const Keycloak = require('keycloak-connect');
-const session = require('express-session');
-
-// Session store for Keycloak
-const memoryStore = new session.MemoryStore();
-
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'should-be-from-vault',
-  resave: false,
-  saveUninitialized: true,
-  store: memoryStore
-}));
-
-const keycloak = new Keycloak({
-  store: memoryStore
-}, {
-  realm: 'ospf-ll-json-part1',
-  'auth-server-url': 'http://localhost:8080/',
-  'ssl-required': 'external',
-  resource: 'netviz-pro-api',
-  'confidential-port': 0,
-  'bearer-only': true
-});
-
-app.use(keycloak.middleware());
-
-// Protect routes with Keycloak
-app.get('/api/*', keycloak.protect(), (req, res, next) => {
-  next();
-});
-```
-
-### 3. Vault Client Integration
-
-Create `server/vault-client.js`:
-
-```javascript
-const vault = require('node-vault')({
-  apiVersion: 'v1',
-  endpoint: process.env.VAULT_ADDR || 'http://localhost:8200',
-});
-
-let vaultToken = null;
-
-async function initVault() {
-  const roleId = process.env.VAULT_ROLE_ID;
-  const secretId = process.env.VAULT_SECRET_ID;
-
-  if (!roleId || !secretId) {
-    throw new Error('Vault AppRole credentials not configured');
-  }
-
-  const result = await vault.approleLogin({
-    role_id: roleId,
-    secret_id: secretId,
-  });
-
-  vault.token = result.auth.client_token;
-  vaultToken = result.auth.client_token;
-
-  // Auto-renew token
-  const ttl = result.auth.lease_duration * 1000 * 0.75;
-  setInterval(async () => {
-    await vault.tokenRenewSelf();
-  }, ttl);
-
-  console.log('Vault authentication successful');
-}
-
-async function getConfig() {
-  const result = await vault.read('ospf-ll-json-part1/data/config');
-  return result.data.data;
-}
-
-async function getAdminResetPin() {
-  const config = await getConfig();
-  return config.admin_reset_pin;
-}
-
-async function getJwtSecret() {
-  const config = await getConfig();
-  return config.jwt_secret;
-}
-
-module.exports = {
-  initVault,
-  getConfig,
-  getAdminResetPin,
-  getJwtSecret,
-  vault,
-};
-```
-
-### 4. Update Auth Server
-
-Modify `server/index.js`:
-
-```javascript
-const { initVault, getJwtSecret, getAdminResetPin } = require('./vault-client');
-
-// Initialize Vault before starting server
+// In server/index.js
 async function startServer() {
-  try {
-    await initVault();
+  // Initialize Auth-Vault
+  const authVaultActive = await initAuthVault();
 
-    // Get JWT secret from Vault instead of environment
-    const JWT_SECRET = await getJwtSecret();
-
-    // Update JWT signing to use Vault secret
-    // ... rest of your auth logic
-
-    app.listen(AUTH_PORT, () => {
-      console.log(`Auth server running on port ${AUTH_PORT}`);
-    });
-  } catch (error) {
-    console.error('Failed to initialize:', error);
-    process.exit(1);
+  if (authVaultActive) {
+    console.log(`Auth-Vault: Active (mode: ${getAuthMode()})`);
+  } else {
+    console.log('Auth-Vault: Inactive (using legacy mode)');
   }
-}
 
-startServer();
+  // Start server...
+}
 ```
 
-### 5. Update Admin Reset PIN Logic
+### Updated requireAuth Middleware
+
+The `requireAuth` middleware now supports both legacy JWT and Keycloak tokens:
 
 ```javascript
-// Replace hardcoded PIN check with Vault lookup
-app.post('/api/auth/reset-admin', adminResetLimiter, async (req, res) => {
-  const { pin } = req.body;
+const requireAuth = async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
 
-  // Get PIN from Vault (hashed)
-  const storedPinHash = await getAdminResetPin();
-  const inputHash = crypto.createHash('sha256').update(pin).digest('hex');
+  // Try unified auth (supports both legacy and Keycloak)
+  const verifiedUser = await verifyToken(token, JWT_SECRET);
 
-  if (inputHash !== storedPinHash) {
-    return res.status(401).json({ error: 'Invalid PIN' });
+  if (verifiedUser) {
+    if (verifiedUser.authSource === 'keycloak') {
+      // Keycloak token - use directly
+      req.user = verifiedUser;
+      return next();
+    }
+    // Legacy token - verify against local database
+    // ...existing logic...
   }
-
-  // ... rest of reset logic
-});
-```
-
-### 6. Environment Variables
-
-Create `.env.production`:
-
-```env
-# Keycloak Configuration
-KEYCLOAK_URL=http://localhost:8080
-KEYCLOAK_REALM=ospf-ll-json-part1
-KEYCLOAK_CLIENT_ID=netviz-pro-api
-KEYCLOAK_CLIENT_SECRET=FROM_VAULT
-
-# Vault Configuration
-VAULT_ADDR=http://localhost:8200
-VAULT_ROLE_ID=FROM_VAULT_INIT
-VAULT_SECRET_ID=FROM_VAULT_INIT
-
-# Server Configuration
-AUTH_PORT=9041
-GATEWAY_PORT=9040
-VITE_INTERNAL_PORT=9042
-
-# Removed: APP_SECRET_KEY, ADMIN_RESET_PIN, APP_ADMIN_PASSWORD
-# These are now fetched from Vault at runtime
-```
-
-### 7. Frontend Integration
-
-Update React app to use Keycloak:
-
-```typescript
-// src/hooks/useAuth.tsx
-import { useKeycloak } from '@react-keycloak/web';
-
-export const useAuth = () => {
-  const { keycloak, initialized } = useKeycloak();
-
-  return {
-    isAuthenticated: keycloak.authenticated,
-    isAdmin: keycloak.hasRealmRole('admin'),
-    user: keycloak.tokenParsed,
-    login: () => keycloak.login(),
-    logout: () => keycloak.logout(),
-    token: keycloak.token,
-    loading: !initialized,
-  };
 };
 ```
 
-## Migration Path
+## Usage
 
-### Phase 1: Parallel Authentication
-1. Keep existing local auth working
-2. Add Keycloak as alternative
-3. Test with subset of users
+### Starting with Auth-Vault
 
-### Phase 2: Vault Integration
-1. Move secrets to Vault
-2. Update server to fetch from Vault
-3. Remove hardcoded values
+```bash
+# 1. Ensure auth-vault is running
+cd /path/to/auth-vault
+./auth-vault.sh start
 
-### Phase 3: Full Migration
-1. Disable local auth
-2. Remove local user database (or archive)
-3. All auth through Keycloak
+# 2. Start the application
+cd /path/to/OSPF-LL-JSON-PART1/netviz-pro
+npm run start
+```
 
-## Security Improvements Over Current Implementation
+### Checking Auth Status
 
-| Current Issue | With Auth-Vault |
-|---------------|-----------------|
-| Exposed secrets in .env.local | Secrets in Vault, dynamic fetch |
-| Weak admin reset PIN (16 chars) | Strong PIN in Vault, rate limited |
-| Session in memory (lost on restart) | Keycloak manages sessions |
-| No CSRF protection | Keycloak handles CSRF |
-| Unsafe CSP headers | Proper CSP with nonces |
-| Token in localStorage | Keycloak handles securely |
+```bash
+# Check health endpoint
+curl http://localhost:9041/api/health
 
-## Security Checklist
+# Response includes:
+{
+  "status": "healthy",
+  "authVault": "active",    # or "inactive"
+  "authMode": "keycloak"    # or "legacy"
+}
 
-- [ ] Changed default Keycloak admin password
-- [ ] Changed default user passwords
-- [ ] Removed hardcoded secrets from code
-- [ ] Removed .env.local from repository
-- [ ] Updated admin reset PIN in Vault
-- [ ] Configured HTTPS for production
-- [ ] Tested session expiry
-- [ ] Verified role-based access
-- [ ] Enabled audit logging in Keycloak
+# Check auth config (for frontend)
+curl http://localhost:9041/api/auth/config
+```
+
+## Security Features
+
+- **JWKS Token Verification**: RS256 with automatic key rotation
+- **Graceful Degradation**: Falls back to legacy auth if Keycloak unavailable
+- **Secrets from Vault**: JWT secret fetched from Vault when available
+- **Backward Compatible**: Existing SQLite users continue to work
 
 ## Troubleshooting
 
-### "ADMIN_RESET_PIN not found"
-1. Verify Vault is running and initialized
-2. Check AppRole credentials are correct
-3. Verify secret exists: `vault kv get ospf-ll-json-part1/config`
+### Keycloak Mode Not Activating
 
-### Gateway shows "Keycloak not available"
-1. Check Keycloak is running: `docker ps | grep keycloak`
-2. Verify realm exists: `curl http://localhost:8080/realms/ospf-ll-json-part1`
-3. Check network connectivity between containers
+```bash
+# Check Keycloak is running
+curl http://localhost:9120/health/ready
 
-### Token validation fails
-1. Verify client secret matches in Keycloak
-2. Check issuer URL matches configuration
-3. Ensure clock sync between servers
+# Check realm exists
+curl http://localhost:9120/realms/ospf-ll-json-part1
+```
 
-## References
+### Token Validation Fails
 
-- [Keycloak Node.js Adapter](https://www.keycloak.org/docs/latest/securing_apps/#_nodejs_adapter)
-- [Vault Node.js Client](https://github.com/kr1sp1n/node-vault)
-- [Express Session Store](https://www.npmjs.com/package/express-session)
+1. Verify JWKS endpoint accessible
+2. Check token issuer matches realm URL
+3. Verify clock sync between services
+
+### Vault Secrets Not Loading
+
+```bash
+# Check Vault is running
+curl http://localhost:9121/v1/sys/health
+
+# Verify AppRole credentials are set
+```
+
+## Migration Notes
+
+This integration maintains backward compatibility:
+- Existing SQLite users continue to work
+- Keycloak SSO available when configured
+- No breaking changes to API

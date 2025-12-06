@@ -1,8 +1,8 @@
-# Auth-Vault Integration Guide: OSPF NN-JSON (Visualizer Pro)
+# Auth-Vault Integration: OSPF Visualizer Pro (OSPF-NN-JSON)
 
-## Overview
+## Status: ✅ INTEGRATED
 
-This document describes how to integrate the OSPF Visualizer Pro application with the centralized Keycloak + Vault security infrastructure.
+This application has been fully integrated with the Auth-Vault infrastructure (Keycloak + HashiCorp Vault).
 
 ## Architecture
 
@@ -14,19 +14,19 @@ This document describes how to integrate the OSPF Visualizer Pro application wit
 │  Port: 9080                │  Port: 9081                        │
 │                            │                                     │
 │  ┌──────────────┐          │  ┌──────────────┐                  │
-│  │ Keycloak JS  │──────────┼──│ OIDC Verify  │                  │
-│  │ Adapter      │          │  │ Middleware   │                  │
+│  │ Keycloak     │──────────┼──│ keycloak-    │                  │
+│  │ (optional)   │          │  │ verifier.js  │                  │
+│  └──────────────┘          │  └──────────────┘                  │
+│                            │         │                          │
+│  ┌──────────────┐          │         ▼                          │
+│  │ Legacy Auth  │──────────┼──│ auth-unified │                  │
+│  │ (fallback)   │          │  │     .js      │                  │
 │  └──────────────┘          │  └──────────────┘                  │
 │                            │         │                          │
 │                            │         ▼                          │
 │                            │  ┌──────────────┐                  │
-│                            │  │ Vault Client │                  │
-│                            │  └──────────────┘                  │
-│                            │         │                          │
-│                            │         ▼                          │
-│                            │  ┌──────────────┐                  │
-│                            │  │   SQLite     │                  │
-│                            │  │  (encrypted) │                  │
+│                            │  │ vault-client │                  │
+│                            │  │     .js      │                  │
 │                            │  └──────────────┘                  │
 └─────────────────────────────────────────────────────────────────┘
                                        │
@@ -34,44 +34,53 @@ This document describes how to integrate the OSPF Visualizer Pro application wit
                     ▼                  ▼
             ┌──────────────┐   ┌──────────────┐
             │   Keycloak   │   │    Vault     │
-            │   Port 8080  │   │   Port 8200  │
+            │   Port 9120  │   │   Port 9121  │
             │              │   │              │
             │ Realm:       │   │ Mount:       │
             │ ospf-nn-json │   │ ospf-nn-json │
             └──────────────┘   └──────────────┘
 ```
 
-## Keycloak Configuration
+## Integrated Components
 
-### Realm Details
+### Backend Files Added
+
+| File | Purpose |
+|------|---------|
+| `server/lib/keycloak-verifier.js` | JWT token verification via JWKS (RS256) |
+| `server/lib/vault-client.js` | AppRole authentication & secrets fetching |
+| `server/lib/auth-unified.js` | Hybrid auth middleware (legacy + Keycloak) |
+
+### API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/auth/config` | GET | Returns auth mode and Keycloak config for frontend |
+| `/api/health` | GET | Includes `authVault` and `authMode` status |
+
+## Configuration
+
+### Environment Variables
+
+```bash
+# Keycloak Configuration
+KEYCLOAK_URL=http://localhost:9120
+KEYCLOAK_REALM=ospf-nn-json
+KEYCLOAK_CLIENT_ID=visualizer-pro-api
+
+# Vault Configuration
+VAULT_ADDR=http://localhost:9121
+VAULT_ROLE_ID=<from-vault-init>
+VAULT_SECRET_ID=<from-vault-init>
+# OR use token auth:
+VAULT_TOKEN=<vault-token>
+```
+
+### Keycloak Realm Details
+
 - **Realm Name**: `ospf-nn-json`
-- **Keycloak URL**: `http://localhost:8080`
-
-### Clients
-
-| Client ID | Type | Purpose |
-|-----------|------|---------|
-| `visualizer-pro-frontend` | Public | React SPA (PKCE flow) |
-| `visualizer-pro-api` | Confidential | Backend API |
-| `vault-oidc` | Confidential | Vault OIDC integration |
-
-### Roles
-
-| Role | Description |
-|------|-------------|
-| `admin` | Full administrative access |
-| `user` | Standard user access |
-
-### Client Scopes (Fine-grained permissions)
-
-| Scope | Description |
-|-------|-------------|
-| `topology:read` | Read topology data |
-| `topology:write` | Create/modify topology |
-| `scenarios:manage` | Manage failure scenarios |
-| `settings:manage` | Manage application settings |
-| `users:manage` | User management (admin) |
-| `links:manage` | Custom link management |
+- **Frontend Client**: `visualizer-pro-frontend` (Public, PKCE)
+- **Backend Client**: `visualizer-pro-api` (Confidential)
 
 ### Default Users
 
@@ -80,288 +89,108 @@ This document describes how to integrate the OSPF Visualizer Pro application wit
 | `visualizer-admin` | `ChangeMe!Admin2025` | admin |
 | `visualizer-user` | `ChangeMe!User2025` | user |
 
-## Vault Configuration
-
-### Secret Paths
+### Vault Secret Paths
 
 | Path | Description |
 |------|-------------|
 | `ospf-nn-json/config` | JWT secret, session secret |
-| `ospf-nn-json/database` | Database path |
-| `ospf-nn-json/approle` | AppRole credentials |
+| `ospf-nn-json/database` | Database configuration |
 
-### Transit Keys
+## Authentication Modes
 
-| Key | Type | Purpose |
-|-----|------|---------|
-| `jwt-signing` | RSA-4096 | JWT token signing |
-| `data-encryption` | AES-256-GCM | Data encryption |
+The application supports dual authentication:
 
-## Critical Issues to Fix
+### 1. Keycloak Mode (Auth-Vault)
+- Activated when Keycloak is available at startup
+- SSO via OIDC with PKCE
+- JWT verified via JWKS (RS256)
 
-### 1. CSRF Protection (Missing)
+### 2. Legacy Mode (Fallback)
+- Activated when Keycloak is unavailable
+- Uses existing JWT authentication
+- Local SQLite user database
 
-**Current State**: No CSRF protection implemented.
+## How It Works
 
-**Solution with Keycloak**:
-
-```javascript
-// server/middleware/csrf.js
-const crypto = require('crypto');
-
-const csrfProtection = (req, res, next) => {
-  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
-    const csrfToken = req.headers['x-csrf-token'];
-    const sessionToken = req.cookies['csrf_token'];
-
-    if (!csrfToken || !sessionToken || csrfToken !== sessionToken) {
-      return res.status(403).json({ error: 'Invalid CSRF token' });
-    }
-  }
-
-  // Generate new CSRF token for response
-  const newToken = crypto.randomBytes(32).toString('hex');
-  res.cookie('csrf_token', newToken, {
-    httpOnly: false, // JavaScript needs to read it
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-  });
-  res.setHeader('X-CSRF-Token', newToken);
-
-  next();
-};
-
-module.exports = csrfProtection;
-```
-
-### 2. Token Blacklist Implementation
-
-**Current State**: Token validation doesn't check session table.
-
-**Solution**:
+### Startup Sequence
 
 ```javascript
-// server/middleware/tokenBlacklist.js
-const db = require('../database');
+// In server/index.js
+async function startServer() {
+  // Initialize Auth-Vault
+  const authVaultActive = await initAuthVault();
 
-const isTokenBlacklisted = async (tokenHash) => {
-  const session = await db.get(
-    'SELECT * FROM sessions WHERE token_hash = ? AND is_active = 1',
-    [tokenHash]
-  );
-  return !session;
-};
-
-const validateToken = async (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: 'No token provided' });
+  if (authVaultActive) {
+    console.log(`Auth-Vault: Active (mode: ${getAuthMode()})`);
+  } else {
+    console.log('Auth-Vault: Inactive (using legacy mode)');
   }
 
-  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  // ... rest of startup
+}
 
-  if (await isTokenBlacklisted(tokenHash)) {
-    return res.status(401).json({ error: 'Token has been revoked' });
-  }
-
-  // Continue with JWT verification
-  next();
-};
+startServer();
 ```
 
-### 3. Move Token from localStorage to httpOnly Cookie
+## Usage
 
-**Frontend Changes**:
-
-```typescript
-// Remove localStorage token storage
-// Before:
-localStorage.setItem('authToken', token);
-
-// After: Token handled by Keycloak adapter automatically
-// No manual token storage needed
-```
-
-**Backend Changes**:
-
-```javascript
-// server/index.js
-app.use(cookieParser());
-
-// Set secure cookie on login
-app.post('/api/auth/login', async (req, res) => {
-  // ... authentication logic ...
-
-  res.cookie('auth_token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  });
-
-  res.json({ user: userInfo }); // Don't return token in body
-});
-```
-
-## Integration Steps
-
-### 1. Install Dependencies
+### Starting with Auth-Vault
 
 ```bash
-npm install keycloak-js keycloak-connect node-vault cookie-parser
+# 1. Ensure auth-vault is running
+cd /path/to/auth-vault
+./auth-vault.sh start
+
+# 2. Start the application
+cd /path/to/OSPF-NN-JSON
+npm run start
 ```
 
-### 2. Keycloak Frontend Setup
+### Checking Auth Status
 
-```typescript
-// src/lib/keycloak.ts
-import Keycloak from 'keycloak-js';
+```bash
+# Check health endpoint
+curl http://localhost:9081/api/health
 
-const keycloakConfig = {
-  url: 'http://localhost:8080',
-  realm: 'ospf-nn-json',
-  clientId: 'visualizer-pro-frontend',
-};
-
-const keycloak = new Keycloak(keycloakConfig);
-
-export const initKeycloak = (): Promise<boolean> => {
-  return keycloak.init({
-    onLoad: 'login-required',
-    pkceMethod: 'S256',
-    checkLoginIframe: false,
-  });
-};
-
-export const getToken = (): string | undefined => keycloak.token;
-
-export const logout = (): void => {
-  keycloak.logout({ redirectUri: window.location.origin });
-};
-
-export const hasRole = (role: string): boolean => {
-  return keycloak.hasRealmRole(role);
-};
-
-export default keycloak;
-```
-
-### 3. Vault Integration
-
-```javascript
-// server/vault-client.js
-const vault = require('node-vault')({
-  endpoint: process.env.VAULT_ADDR || 'http://localhost:8200',
-});
-
-async function initVault() {
-  const { role_id, secret_id } = process.env;
-
-  const authResult = await vault.approleLogin({
-    role_id: process.env.VAULT_ROLE_ID,
-    secret_id: process.env.VAULT_SECRET_ID,
-  });
-
-  vault.token = authResult.auth.client_token;
-
-  // Schedule renewal
-  setInterval(async () => {
-    await vault.tokenRenewSelf();
-  }, authResult.auth.lease_duration * 750);
-
-  return vault;
+# Response includes:
+{
+  "status": "healthy",
+  "authVault": "active",    # or "inactive"
+  "authMode": "keycloak"    # or "legacy"
 }
 
-async function getSecrets() {
-  const result = await vault.read('ospf-nn-json/data/config');
-  return result.data.data;
-}
-
-module.exports = { initVault, getSecrets, vault };
+# Check auth config (for frontend)
+curl http://localhost:9081/api/auth/config
 ```
 
-### 4. Update Server Startup
+## Security Features
 
-```javascript
-// server/index.js
-const { initVault, getSecrets } = require('./vault-client');
-
-async function startServer() {
-  // Initialize Vault
-  await initVault();
-  const secrets = await getSecrets();
-
-  // Use secrets from Vault
-  const JWT_SECRET = secrets.jwt_secret;
-  const SESSION_SECRET = secrets.session_secret;
-
-  // ... rest of server setup using these secrets
-}
-
-startServer().catch(console.error);
-```
-
-### 5. Environment Configuration
-
-```env
-# .env.production
-KEYCLOAK_URL=http://localhost:8080
-KEYCLOAK_REALM=ospf-nn-json
-KEYCLOAK_CLIENT_ID=visualizer-pro-api
-
-VAULT_ADDR=http://localhost:8200
-VAULT_ROLE_ID=<from-vault-init>
-VAULT_SECRET_ID=<from-vault-init>
-
-# Remove these - now from Vault:
-# JWT_SECRET=xxx
-# SESSION_SECRET=xxx
-```
-
-## Security Improvements Summary
-
-| Issue | Current | With Auth-Vault |
-|-------|---------|-----------------|
-| CSRF Protection | None | Keycloak + double-submit |
-| Token Blacklist | Not checked | DB-backed verification |
-| Token Storage | localStorage | httpOnly cookies |
-| Secrets | .env file | Vault with AppRole |
-| Password Hashing | bcrypt | bcrypt (unchanged) |
-| Session Management | Manual | Keycloak managed |
-| Audit Logging | Limited | Keycloak events + Vault |
-
-## Security Checklist
-
-- [ ] Keycloak realm created and configured
-- [ ] Changed default user passwords
-- [ ] Vault secrets populated
-- [ ] CSRF protection implemented
-- [ ] Token blacklist working
-- [ ] Tokens in httpOnly cookies
-- [ ] Rate limiting per user (not just IP)
-- [ ] Account lockout after failures
-- [ ] HTTPS enabled
-- [ ] CSP headers tightened
+- **JWKS Token Verification**: RS256 with automatic key rotation
+- **Graceful Degradation**: Falls back to legacy auth if Keycloak unavailable
+- **Secrets from Vault**: JWT secret fetched from Vault when available
+- **Backward Compatible**: Existing local users continue to work
 
 ## Troubleshooting
 
-### CSRF Token Mismatch
-1. Check cookie is being set correctly
-2. Verify frontend sends X-CSRF-Token header
-3. Check SameSite attribute
+### Keycloak Mode Not Activating
 
-### Keycloak Login Redirect Loop
-1. Verify redirect URIs in Keycloak client
-2. Check CORS configuration
-3. Verify SSL settings match environment
+```bash
+# Check Keycloak is running
+curl http://localhost:9120/health/ready
 
-### Vault Connection Refused
-1. Check Vault is running: `vault status`
-2. Verify VAULT_ADDR is correct
-3. Check AppRole credentials
+# Check realm exists
+curl http://localhost:9120/realms/ospf-nn-json
+```
 
-## References
+### Token Validation Fails
 
-- [Keycloak Security Best Practices](https://www.keycloak.org/docs/latest/server_admin/#security-best-practices)
-- [OWASP CSRF Prevention](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)
-- [Vault AppRole](https://developer.hashicorp.com/vault/docs/auth/approle)
+1. Verify JWKS endpoint accessible
+2. Check token issuer matches realm URL
+3. Verify clock sync between services
+
+## Migration Notes
+
+This integration maintains backward compatibility:
+- Existing local users continue to work
+- Keycloak SSO available when configured
+- No breaking changes to API
