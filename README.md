@@ -394,367 +394,210 @@ curl -H "X-Vault-Token: <token>" http://localhost:9121/v1/sys/mounts
 
 ## App-Specific Documentation
 
-See the README-AUTH-VAULT.md in each app's directory:
+See the README in each app's directory under `apps/`:
 
-- [OSPF Impact Planner](./apps/impact-planner/README-AUTH-VAULT.md)
-- [NetViz Pro](./apps/ll-json-part1/README-AUTH-VAULT.md)
-- [OSPF Visualizer Pro](./apps/nn-json/README-AUTH-VAULT.md)
-- [OSPF Tempo-X](./apps/tempo-x/README-AUTH-VAULT.md)
-- [OSPF Device Manager](./apps/device-manager/README-AUTH-VAULT.md)
+- [OSPF Impact Planner](./apps/impact-planner/README.md)
+- [NetViz Pro (LL-JSON-Part1)](./apps/ll-json-part1/README.md)
+- [OSPF Visualizer Pro (NN-JSON)](./apps/nn-json/README.md)
+- [OSPF Tempo-X](./apps/tempo-x/README.md)
+- [OSPF Device Manager](./apps/device-manager/README.md)
 
 ---
 
-## NetViz Pro (OSPF-LL-JSON-PART1) Quick Start
+## Running Applications
 
-Complete guide to get NetViz Pro running with Auth-Vault integration.
+### Start All Applications
 
-### Prerequisites
-
-- **Docker Desktop** (macOS/Windows) or Docker Engine (Linux)
-- **Node.js** v18-24 (v20 LTS recommended)
-- **Git**
-
-### One-Command Setup Script
-
-Save this as `start-netviz-pro.sh` and run it:
+To run all 5 OSPF applications with Auth-Vault:
 
 ```bash
 #!/bin/bash
-# =============================================================================
-# NetViz Pro with Auth-Vault - Complete Setup Script
-# =============================================================================
-# This script:
-# 1. Checks if auth-vault is installed, clones if not
-# 2. Starts Docker if not running
-# 3. Starts Keycloak and Vault containers
-# 4. Waits for services to be healthy
-# 5. Clones/updates NetViz Pro if needed
-# 6. Configures environment variables
-# 7. Starts NetViz Pro
-# =============================================================================
+# start-all-apps.sh - Start Auth-Vault and all OSPF applications
 
-set -e
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Configuration
-AUTH_VAULT_DIR="${AUTH_VAULT_DIR:-$HOME/auth-vault}"
-NETVIZ_PRO_DIR="${NETVIZ_PRO_DIR:-$HOME/OSPF-LL-JSON-PART1}"
-KEYCLOAK_PORT=9120
-VAULT_PORT=9121
-GATEWAY_PORT=9040
-
-echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}  NetViz Pro + Auth-Vault Setup${NC}"
-echo -e "${BLUE}========================================${NC}"
-
-# -----------------------------------------------------------------------------
-# Step 1: Check/Install Auth-Vault
-# -----------------------------------------------------------------------------
-echo -e "\n${YELLOW}[1/7] Checking Auth-Vault installation...${NC}"
-
-if [ -d "$AUTH_VAULT_DIR" ]; then
-    echo -e "${GREEN}✓ Auth-Vault found at $AUTH_VAULT_DIR${NC}"
-else
-    echo -e "${YELLOW}Auth-Vault not found. Cloning...${NC}"
-    git clone https://github.com/zumanm1/auth-vault.git "$AUTH_VAULT_DIR"
-    echo -e "${GREEN}✓ Auth-Vault cloned${NC}"
-fi
-
-# -----------------------------------------------------------------------------
-# Step 2: Check/Start Docker
-# -----------------------------------------------------------------------------
-echo -e "\n${YELLOW}[2/7] Checking Docker...${NC}"
-
-if ! docker info > /dev/null 2>&1; then
-    echo -e "${YELLOW}Docker not running. Starting Docker Desktop...${NC}"
-    
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        open -a Docker
-        echo "Waiting for Docker to start (up to 60 seconds)..."
-        for i in {1..60}; do
-            if docker info > /dev/null 2>&1; then
-                break
-            fi
-            sleep 1
-            echo -n "."
-        done
-        echo ""
-    else
-        echo -e "${RED}Please start Docker manually and re-run this script${NC}"
-        exit 1
-    fi
-fi
-
-if docker info > /dev/null 2>&1; then
-    echo -e "${GREEN}✓ Docker is running${NC}"
-else
-    echo -e "${RED}✗ Docker failed to start${NC}"
-    exit 1
-fi
-
-# -----------------------------------------------------------------------------
-# Step 3: Check/Start Auth-Vault Services
-# -----------------------------------------------------------------------------
-echo -e "\n${YELLOW}[3/7] Checking Auth-Vault services...${NC}"
-
-cd "$AUTH_VAULT_DIR"
-
-# Check if containers exist and are running
-KEYCLOAK_RUNNING=$(docker ps --filter "name=keycloak" --filter "status=running" -q 2>/dev/null)
-VAULT_RUNNING=$(docker ps --filter "name=vault" --filter "status=running" -q 2>/dev/null)
-
-if [ -n "$KEYCLOAK_RUNNING" ] && [ -n "$VAULT_RUNNING" ]; then
-    echo -e "${GREEN}✓ Keycloak and Vault are already running${NC}"
-else
-    echo -e "${YELLOW}Starting Auth-Vault services...${NC}"
-    
-    # Create .env if it doesn't exist
-    if [ ! -f .env ]; then
-        if [ -f .env.example ]; then
-            cp .env.example .env
-            echo -e "${GREEN}✓ Created .env from template${NC}"
-        fi
-    fi
-    
-    # Start services
-    docker compose up -d
-    echo -e "${GREEN}✓ Auth-Vault services started${NC}"
-fi
-
-# -----------------------------------------------------------------------------
-# Step 4: Wait for Services to be Healthy
-# -----------------------------------------------------------------------------
-echo -e "\n${YELLOW}[4/7] Waiting for services to be healthy...${NC}"
-
-echo -n "Waiting for Keycloak..."
-for i in {1..60}; do
-    if curl -s http://localhost:$KEYCLOAK_PORT/health/ready | grep -q "UP"; then
-        echo -e " ${GREEN}✓ Ready${NC}"
-        break
-    fi
-    sleep 2
-    echo -n "."
-done
-
-echo -n "Waiting for Vault..."
-for i in {1..30}; do
-    if curl -s http://localhost:$VAULT_PORT/v1/sys/health | grep -q "initialized"; then
-        echo -e " ${GREEN}✓ Ready${NC}"
-        break
-    fi
-    sleep 1
-    echo -n "."
-done
-
-# Verify services
-echo -e "\n${BLUE}Service Status:${NC}"
-curl -s http://localhost:$KEYCLOAK_PORT/health/ready | jq -r '.status' 2>/dev/null && echo "  Keycloak: UP" || echo "  Keycloak: checking..."
-curl -s http://localhost:$VAULT_PORT/v1/sys/health | jq -r 'if .initialized then "  Vault: UP" else "  Vault: initializing" end' 2>/dev/null || echo "  Vault: checking..."
-
-# -----------------------------------------------------------------------------
-# Step 5: Check/Install NetViz Pro
-# -----------------------------------------------------------------------------
-echo -e "\n${YELLOW}[5/7] Checking NetViz Pro installation...${NC}"
-
-if [ -d "$NETVIZ_PRO_DIR" ]; then
-    echo -e "${GREEN}✓ NetViz Pro found at $NETVIZ_PRO_DIR${NC}"
-else
-    echo -e "${YELLOW}NetViz Pro not found. Cloning...${NC}"
-    git clone https://github.com/zumanm1/OSPF-LL-JSON-PART1.git "$NETVIZ_PRO_DIR"
-    echo -e "${GREEN}✓ NetViz Pro cloned${NC}"
-fi
-
-cd "$NETVIZ_PRO_DIR/netviz-pro"
-
-# Install dependencies if needed
-if [ ! -d "node_modules" ]; then
-    echo -e "${YELLOW}Installing dependencies...${NC}"
-    npm install --legacy-peer-deps
-    echo -e "${GREEN}✓ Dependencies installed${NC}"
-fi
-
-# -----------------------------------------------------------------------------
-# Step 6: Configure Environment
-# -----------------------------------------------------------------------------
-echo -e "\n${YELLOW}[6/7] Configuring environment...${NC}"
-
-# Create .env.local if it doesn't exist
-if [ ! -f .env.local ]; then
-    if [ -f .env.local.example ]; then
-        cp .env.local.example .env.local
-    fi
-fi
-
-# Ensure Auth-Vault configuration is present
-if ! grep -q "KEYCLOAK_URL" .env.local 2>/dev/null; then
-    cat >> .env.local << 'EOF'
-
-# ==============================================================================
-# AUTH-VAULT INTEGRATION (Keycloak + Vault)
-# ==============================================================================
-# Keycloak Configuration
-KEYCLOAK_URL=http://localhost:9120
-KEYCLOAK_REALM=ospf-ll-json-part1
-KEYCLOAK_CLIENT_ID=netviz-pro-api
-
-# Vault Configuration (using dev token)
-VAULT_ADDR=http://localhost:9121
-VAULT_TOKEN=ospf-vault-dev-token-2025
-EOF
-    echo -e "${GREEN}✓ Auth-Vault configuration added to .env.local${NC}"
-else
-    echo -e "${GREEN}✓ Auth-Vault configuration already present${NC}"
-fi
-
-# -----------------------------------------------------------------------------
-# Step 7: Start NetViz Pro
-# -----------------------------------------------------------------------------
-echo -e "\n${YELLOW}[7/7] Starting NetViz Pro...${NC}"
-
-# Check if already running
-if lsof -i :$GATEWAY_PORT > /dev/null 2>&1; then
-    echo -e "${GREEN}✓ NetViz Pro already running on port $GATEWAY_PORT${NC}"
-else
-    echo -e "${YELLOW}Starting servers...${NC}"
-    ./start.sh &
-    sleep 10
-fi
-
-# -----------------------------------------------------------------------------
-# Final Status
-# -----------------------------------------------------------------------------
-echo -e "\n${BLUE}========================================${NC}"
-echo -e "${GREEN}  Setup Complete!${NC}"
-echo -e "${BLUE}========================================${NC}"
-echo ""
-echo -e "${BLUE}Services:${NC}"
-echo -e "  • Keycloak Admin:  http://localhost:$KEYCLOAK_PORT/admin"
-echo -e "  • Vault UI:        http://localhost:$VAULT_PORT/ui"
-echo -e "  • NetViz Pro:      http://localhost:$GATEWAY_PORT"
-echo ""
-echo -e "${BLUE}Verify Integration:${NC}"
-echo -e "  curl http://localhost:9041/api/health | jq ."
-echo ""
-echo -e "${YELLOW}Default Credentials:${NC}"
-echo -e "  • Keycloak Admin: admin / admin"
-echo -e "  • NetViz Pro: See .env.local for credentials"
-echo ""
-```
-
-### Manual Step-by-Step Setup
-
-If you prefer manual setup:
-
-#### Step 1: Install and Start Auth-Vault
-
-```bash
-# Clone auth-vault if not installed
-if [ ! -d ~/auth-vault ]; then
-    git clone https://github.com/zumanm1/auth-vault.git ~/auth-vault
-fi
-
-# Start Docker Desktop (macOS)
-open -a Docker
-
-# Wait for Docker, then start services
-cd ~/auth-vault
+# Step 1: Start Auth-Vault
+cd /Users/macbook/auth-vault
 docker compose up -d
 
-# Verify services are healthy
-curl http://localhost:9120/health/ready
-curl http://localhost:9121/v1/sys/health
+# Wait for services
+echo "Waiting for Keycloak and Vault..."
+sleep 30
+
+# Verify services
+curl -s http://localhost:9120/health/ready
+curl -s http://localhost:9121/v1/sys/health
+
+# Step 2: Start each application
+echo "Starting OSPF Impact Planner..."
+cd /Users/macbook/OSPF-IMPACT-planner\ Private && ./start.sh &
+
+echo "Starting NetViz Pro..."
+cd /Users/macbook/OSPF-LL-JSON-PART1/netviz-pro && ./start.sh &
+
+echo "Starting OSPF Visualizer Pro..."
+cd /Users/macbook/OSPF-NN-JSON && ./start.sh &
+
+echo "Starting OSPF Tempo-X..."
+cd /Users/macbook/OSPF-TEMPO-X && ./start.sh &
+
+echo "Starting OSPF Device Manager..."
+cd /Users/macbook/OSPF-LL-DEVICE_MANAGER && ./start.sh &
+
+echo "All applications started!"
 ```
 
-#### Step 2: Install and Start NetViz Pro
+### Start Individual Applications
+
+#### NetViz Pro (OSPF-LL-JSON-PART1)
+
+| Property | Value |
+|----------|-------|
+| Directory | `/Users/macbook/OSPF-LL-JSON-PART1/netviz-pro` |
+| Gateway Port | 9040 |
+| Auth Server Port | 9041 |
+| Realm | `ospf-ll-json-part1` |
 
 ```bash
-# Clone NetViz Pro if not installed
-if [ ! -d ~/OSPF-LL-JSON-PART1 ]; then
-    git clone https://github.com/zumanm1/OSPF-LL-JSON-PART1.git ~/OSPF-LL-JSON-PART1
-fi
+# Option 1: One-command start (handles Auth-Vault automatically)
+cd /Users/macbook/OSPF-LL-JSON-PART1/netviz-pro
+./start-with-auth-vault.sh
 
-cd ~/OSPF-LL-JSON-PART1/netviz-pro
+# Option 2: Manual start (Auth-Vault must be running)
+cd /Users/macbook/auth-vault && docker compose up -d
+cd /Users/macbook/OSPF-LL-JSON-PART1/netviz-pro && ./start.sh
 
-# Install dependencies
-npm install --legacy-peer-deps
+# Verify
+curl http://localhost:9041/api/health
+# Expected: {"authVault": "active", "authMode": "keycloak"}
+```
 
-# Configure environment (add to .env.local)
-cat >> .env.local << 'EOF'
-KEYCLOAK_URL=http://localhost:9120
-KEYCLOAK_REALM=ospf-ll-json-part1
-KEYCLOAK_CLIENT_ID=netviz-pro-api
-VAULT_ADDR=http://localhost:9121
-VAULT_TOKEN=ospf-vault-dev-token-2025
-EOF
+**Access:** http://localhost:9040
+
+#### OSPF Impact Planner
+
+| Property | Value |
+|----------|-------|
+| Directory | `/Users/macbook/OSPF-IMPACT-planner Private` |
+| Frontend Port | 9090 |
+| Backend Port | 9091 |
+| Realm | `ospf-impact-planner` |
+
+```bash
+# Start Auth-Vault first
+cd /Users/macbook/auth-vault && docker compose up -d
 
 # Start the application
-./start.sh
+cd "/Users/macbook/OSPF-IMPACT-planner Private" && ./start.sh
+
+# Verify
+curl http://localhost:9091/api/health
 ```
 
-#### Step 3: Verify Integration
+**Access:** http://localhost:9090
+
+#### OSPF Visualizer Pro (NN-JSON)
+
+| Property | Value |
+|----------|-------|
+| Directory | `/Users/macbook/OSPF-NN-JSON` |
+| Frontend Port | 9080 |
+| Backend Port | 9081 |
+| Realm | `ospf-nn-json` |
 
 ```bash
-# Check health endpoint
-curl http://localhost:9041/api/health | jq .
+# Start Auth-Vault first
+cd /Users/macbook/auth-vault && docker compose up -d
 
-# Expected response:
-{
-  "status": "ok",
-  "authVault": "active",
-  "authMode": "keycloak"
-}
+# Start the application
+cd /Users/macbook/OSPF-NN-JSON && ./start.sh
+
+# Verify
+curl http://localhost:9081/api/health
 ```
 
-### Ports Reference
+**Access:** http://localhost:9080
 
-| Service | Port | URL |
-|---------|------|-----|
-| NetViz Pro Gateway | 9040 | http://localhost:9040 |
-| NetViz Pro Auth Server | 9041 | http://localhost:9041/api |
-| NetViz Pro Vite Dev | 9042 | http://localhost:9042 |
-| Keycloak | 9120 | http://localhost:9120 |
-| Vault | 9121 | http://localhost:9121 |
+#### OSPF Tempo-X
 
-### Troubleshooting NetViz Pro
-
-#### Auth-Vault Not Active
+| Property | Value |
+|----------|-------|
+| Directory | `/Users/macbook/OSPF-TEMPO-X` |
+| Frontend Port | 9100 |
+| Backend Port | 9101 |
+| Realm | `ospf-tempo-x` |
 
 ```bash
-# Check if Keycloak is accessible
-curl http://localhost:9120/realms/ospf-ll-json-part1
+# Start Auth-Vault first
+cd /Users/macbook/auth-vault && docker compose up -d
 
-# Check environment variables
-grep KEYCLOAK ~/OSPF-LL-JSON-PART1/netviz-pro/.env.local
+# Start the application
+cd /Users/macbook/OSPF-TEMPO-X && ./start.sh
 
-# Restart NetViz Pro after fixing
-cd ~/OSPF-LL-JSON-PART1/netviz-pro
-./stop.sh && ./start.sh
+# Verify
+curl http://localhost:9101/api/health
 ```
 
-#### Rate Limiting Issues
+**Access:** http://localhost:9100
 
-The application has rate limiting (5 attempts per 15 minutes) on auth endpoints. If you see "Too many authentication attempts", wait 15 minutes or restart the auth server.
+#### OSPF Device Manager
 
-#### Docker Services Not Starting
+| Property | Value |
+|----------|-------|
+| Directory | `/Users/macbook/OSPF-LL-DEVICE_MANAGER` |
+| Frontend Port | 9050 |
+| Backend Port | 9051 |
+| Realm | `ospf-device-manager` |
 
 ```bash
-# Check Docker status
-docker ps -a
+# Start Auth-Vault first
+cd /Users/macbook/auth-vault && docker compose up -d
 
-# View logs
-cd ~/auth-vault
-docker compose logs keycloak
-docker compose logs vault
+# Start the application
+cd /Users/macbook/OSPF-LL-DEVICE_MANAGER && ./start.sh
 
-# Restart services
-docker compose restart
+# Verify
+curl http://localhost:9051/api/health
 ```
+
+**Access:** http://localhost:9050
+
+### Stop All Applications
+
+```bash
+#!/bin/bash
+# stop-all-apps.sh - Stop all OSPF applications and Auth-Vault
+
+# Stop applications (kill by port)
+for port in 9040 9041 9042 9050 9051 9080 9081 9090 9091 9100 9101; do
+    lsof -ti :$port | xargs kill -9 2>/dev/null || true
+done
+
+# Stop Auth-Vault
+cd /Users/macbook/auth-vault
+docker compose down
+
+echo "All applications stopped!"
+```
+
+### Verify All Services
+
+```bash
+#!/bin/bash
+# check-all-services.sh - Verify all services are running
+
+echo "=== Auth-Vault Services ==="
+echo "Keycloak: $(curl -s -o /dev/null -w '%{http_code}' http://localhost:9120/health/ready)"
+echo "Vault: $(curl -s -o /dev/null -w '%{http_code}' http://localhost:9121/v1/sys/health)"
+
+echo ""
+echo "=== OSPF Applications ==="
+echo "NetViz Pro (9041): $(curl -s http://localhost:9041/api/health 2>/dev/null | grep -o '"authMode":"[^"]*"' || echo 'Not running')"
+echo "Impact Planner (9091): $(curl -s http://localhost:9091/api/health 2>/dev/null | grep -o '"authMode":"[^"]*"' || echo 'Not running')"
+echo "Visualizer Pro (9081): $(curl -s http://localhost:9081/api/health 2>/dev/null | grep -o '"authMode":"[^"]*"' || echo 'Not running')"
+echo "Tempo-X (9101): $(curl -s http://localhost:9101/api/health 2>/dev/null | grep -o '"authMode":"[^"]*"' || echo 'Not running')"
+echo "Device Manager (9051): $(curl -s http://localhost:9051/api/health 2>/dev/null | grep -o '"authMode":"[^"]*"' || echo 'Not running')"
+```
+
+---
 
 ## Contributing
 
