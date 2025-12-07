@@ -71,16 +71,71 @@ Auth-Vault provides centralized authentication (Keycloak) and secrets management
 | OSPF Tempo-X | `OSPF-TEMPO-X` | 9100 | 9101 | ospf-tempo-x | ✅ Integrated |
 | OSPF Device Manager | `OSPF-LL-DEVICE_MANAGER` | 9050 | 9051 | ospf-device-manager | ✅ Integrated |
 
-## Quick Start (Native Installation - No Docker)
+## Quick Start
 
-### Prerequisites
+### Option 1: Docker Deployment (Recommended)
+
+Docker provides the easiest and most reliable deployment method.
+
+#### Prerequisites
+- Docker Desktop (macOS/Windows) or Docker Engine (Linux)
+- Docker Compose v2+
+
+#### 1. Configure Environment
+
+```bash
+# Clone repository
+git clone https://github.com/zumanm1/auth-vault.git
+cd auth-vault
+
+# Copy and edit environment file
+cp .env.example .env
+
+# Edit .env with your settings:
+# - KC_PORT=9120 (Keycloak port)
+# - VAULT_PORT=9121 (Vault port)
+# - KC_ADMIN_PASSWORD=<secure-password>
+# - VAULT_DEV_TOKEN=<secure-token>
+```
+
+#### 2. Start Services with Docker
+
+```bash
+# Start Docker Desktop first (macOS)
+open -a Docker
+
+# Start all services
+docker compose up -d
+
+# Check status
+docker ps
+
+# View logs
+docker compose logs -f
+```
+
+#### 3. Verify Services
+
+```bash
+# Check Keycloak health
+curl http://localhost:9120/health/ready
+
+# Check Vault status
+curl http://localhost:9121/v1/sys/health
+```
+
+### Option 2: Native Installation
+
+For environments without Docker.
+
+#### Prerequisites
 
 - macOS (Homebrew), Ubuntu/Debian (apt), or RHEL/CentOS (yum)
 - Node.js 18+ (for Node.js apps)
 - Python 3.11+ (for Device Manager)
 - Java 17+ (for Keycloak)
 
-### 1. Install and Start Auth-Vault
+#### 1. Install and Start Auth-Vault
 
 ```bash
 # Clone repository
