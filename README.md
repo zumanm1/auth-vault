@@ -73,69 +73,15 @@ Auth-Vault provides centralized authentication (Keycloak) and secrets management
 
 ## Quick Start
 
-### Option 1: Docker Deployment (Recommended)
+### Option 1: Native Installation (Recommended)
 
-Docker provides the easiest and most reliable deployment method.
-
-#### Prerequisites
-- Docker Desktop (macOS/Windows) or Docker Engine (Linux)
-- Docker Compose v2+
-
-#### 1. Configure Environment
-
-```bash
-# Clone repository
-git clone https://github.com/zumanm1/auth-vault.git
-cd auth-vault
-
-# Copy and edit environment file
-cp .env.example .env
-
-# Edit .env with your settings:
-# - KC_PORT=9120 (Keycloak port)
-# - VAULT_PORT=9121 (Vault port)
-# - KC_ADMIN_PASSWORD=<secure-password>
-# - VAULT_DEV_TOKEN=<secure-token>
-```
-
-#### 2. Start Services with Docker
-
-```bash
-# Start Docker Desktop first (macOS)
-open -a Docker
-
-# Start all services
-docker compose up -d
-
-# Check status
-docker ps
-
-# View logs
-docker compose logs -f
-```
-
-#### 3. Verify Services
-
-```bash
-# Check Keycloak health
-curl http://localhost:9120/health/ready
-
-# Check Vault status
-curl http://localhost:9121/v1/sys/health
-```
-
-### Option 2: Native Installation
-
-For environments without Docker.
+Native installation provides the most reliable deployment without Docker dependencies.
 
 #### Prerequisites
+- macOS (Homebrew) or Linux (apt/yum)
+- The script will auto-install: Java 17, wget, unzip, jq
 
-- macOS (Homebrew), Ubuntu/Debian (apt), or RHEL/CentOS (yum)
-- Node.js 18+ (for Node.js apps)
-- Python 3.11+ (for Device Manager)
-- Java 17+ (for Keycloak)
-
-#### 1. Install and Start Auth-Vault
+#### 1. Clone and Install
 
 ```bash
 # Clone repository
@@ -152,14 +98,47 @@ cd auth-vault
 ./auth-vault.sh status
 ```
 
-### 2. Access Admin Consoles
+#### 2. Verify Services
 
-- **Keycloak Admin**: http://localhost:9120/admin
-  - Default: admin / admin
-- **Vault UI**: http://localhost:9121/ui
-  - Use root token from installation output
+```bash
+# Check Keycloak health
+curl http://localhost:9120/health/ready
 
-### 3. Verify Installation
+# Check Vault status
+curl http://localhost:9121/v1/sys/health
+```
+
+#### 3. Access Admin Consoles
+
+- **Keycloak Admin**: http://localhost:9120/admin (admin / admin)
+- **Vault UI**: http://localhost:9121/ui (use root token)
+
+### Option 2: Docker Deployment
+
+For environments that prefer containerized deployment.
+
+#### Prerequisites
+- Docker Desktop (macOS/Windows) or Docker Engine (Linux)
+- Docker Compose v2+
+
+#### 1. Configure and Start
+
+```bash
+# Clone repository
+git clone https://github.com/zumanm1/auth-vault.git
+cd auth-vault
+
+# Copy environment file
+cp .env.example .env
+
+# Start with Docker Compose
+docker compose up -d
+
+# Check status
+docker ps
+```
+
+#### 2. Verify Services
 
 ```bash
 # Check Keycloak health
