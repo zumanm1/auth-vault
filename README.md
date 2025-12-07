@@ -387,15 +387,18 @@ See the README in each app's directory under `apps/`:
 
 ### Start All Applications
 
-To run all 5 OSPF applications with Auth-Vault:
+To run all 5 OSPF applications with Auth-Vault (native installation):
 
 ```bash
 #!/bin/bash
 # start-all-apps.sh - Start Auth-Vault and all OSPF applications
 
-# Step 1: Start Auth-Vault
-cd /Users/macbook/auth-vault
-docker compose up -d
+# Step 1: Install Auth-Vault (first time only)
+cd ~/auth-vault
+./auth-vault.sh install
+
+# Step 2: Start Auth-Vault services (native)
+./auth-vault.sh start
 
 # Wait for services
 echo "Waiting for Keycloak and Vault..."
@@ -405,21 +408,21 @@ sleep 30
 curl -s http://localhost:9120/health/ready
 curl -s http://localhost:9121/v1/sys/health
 
-# Step 2: Start each application
+# Step 3: Start each application
 echo "Starting OSPF Impact Planner..."
-cd /Users/macbook/OSPF-IMPACT-planner\ Private && ./start.sh &
+cd ~/OSPF-IMPACT-planner\ Private && ./start.sh &
 
 echo "Starting NetViz Pro..."
-cd /Users/macbook/OSPF-LL-JSON-PART1/netviz-pro && ./start.sh &
+cd ~/OSPF-LL-JSON-PART1/netviz-pro && ./start.sh &
 
 echo "Starting OSPF Visualizer Pro..."
-cd /Users/macbook/OSPF-NN-JSON && ./start.sh &
+cd ~/OSPF-NN-JSON && ./start.sh &
 
 echo "Starting OSPF Tempo-X..."
-cd /Users/macbook/OSPF-TEMPO-X && ./start.sh &
+cd ~/OSPF-TEMPO-X && ./start.sh &
 
 echo "Starting OSPF Device Manager..."
-cd /Users/macbook/OSPF-LL-DEVICE_MANAGER && ./start.sh &
+cd ~/OSPF-LL-DEVICE_MANAGER && ./start.sh &
 
 echo "All applications started!"
 ```
@@ -430,19 +433,19 @@ echo "All applications started!"
 
 | Property | Value |
 |----------|-------|
-| Directory | `/Users/macbook/OSPF-LL-JSON-PART1/netviz-pro` |
+| Directory | `~/OSPF-LL-JSON-PART1/netviz-pro` |
 | Gateway Port | 9040 |
 | Auth Server Port | 9041 |
 | Realm | `ospf-ll-json-part1` |
 
 ```bash
 # Option 1: One-command start (handles Auth-Vault automatically)
-cd /Users/macbook/OSPF-LL-JSON-PART1/netviz-pro
+cd ~/OSPF-LL-JSON-PART1/netviz-pro
 ./start-with-auth-vault.sh
 
 # Option 2: Manual start (Auth-Vault must be running)
-cd /Users/macbook/auth-vault && docker compose up -d
-cd /Users/macbook/OSPF-LL-JSON-PART1/netviz-pro && ./start.sh
+cd ~/auth-vault && ./auth-vault.sh start
+cd ~/OSPF-LL-JSON-PART1/netviz-pro && ./start.sh
 
 # Verify
 curl http://localhost:9041/api/health
@@ -455,17 +458,17 @@ curl http://localhost:9041/api/health
 
 | Property | Value |
 |----------|-------|
-| Directory | `/Users/macbook/OSPF-IMPACT-planner Private` |
+| Directory | `~/OSPF-IMPACT-planner Private` |
 | Frontend Port | 9090 |
 | Backend Port | 9091 |
 | Realm | `ospf-impact-planner` |
 
 ```bash
-# Start Auth-Vault first
-cd /Users/macbook/auth-vault && docker compose up -d
+# Start Auth-Vault first (native)
+cd ~/auth-vault && ./auth-vault.sh start
 
 # Start the application
-cd "/Users/macbook/OSPF-IMPACT-planner Private" && ./start.sh
+cd ~/OSPF-IMPACT-planner\ Private && ./start.sh
 
 # Verify
 curl http://localhost:9091/api/health
@@ -477,17 +480,17 @@ curl http://localhost:9091/api/health
 
 | Property | Value |
 |----------|-------|
-| Directory | `/Users/macbook/OSPF-NN-JSON` |
+| Directory | `~/OSPF-NN-JSON` |
 | Frontend Port | 9080 |
 | Backend Port | 9081 |
 | Realm | `ospf-nn-json` |
 
 ```bash
-# Start Auth-Vault first
-cd /Users/macbook/auth-vault && docker compose up -d
+# Start Auth-Vault first (native)
+cd ~/auth-vault && ./auth-vault.sh start
 
 # Start the application
-cd /Users/macbook/OSPF-NN-JSON && ./start.sh
+cd ~/OSPF-NN-JSON && ./start.sh
 
 # Verify
 curl http://localhost:9081/api/health
@@ -499,17 +502,17 @@ curl http://localhost:9081/api/health
 
 | Property | Value |
 |----------|-------|
-| Directory | `/Users/macbook/OSPF-TEMPO-X` |
+| Directory | `~/OSPF-TEMPO-X` |
 | Frontend Port | 9100 |
 | Backend Port | 9101 |
 | Realm | `ospf-tempo-x` |
 
 ```bash
-# Start Auth-Vault first
-cd /Users/macbook/auth-vault && docker compose up -d
+# Start Auth-Vault first (native)
+cd ~/auth-vault && ./auth-vault.sh start
 
 # Start the application
-cd /Users/macbook/OSPF-TEMPO-X && ./start.sh
+cd ~/OSPF-TEMPO-X && ./start.sh
 
 # Verify
 curl http://localhost:9101/api/health
@@ -521,17 +524,17 @@ curl http://localhost:9101/api/health
 
 | Property | Value |
 |----------|-------|
-| Directory | `/Users/macbook/OSPF-LL-DEVICE_MANAGER` |
+| Directory | `~/OSPF-LL-DEVICE_MANAGER` |
 | Frontend Port | 9050 |
 | Backend Port | 9051 |
 | Realm | `ospf-device-manager` |
 
 ```bash
-# Start Auth-Vault first
-cd /Users/macbook/auth-vault && docker compose up -d
+# Start Auth-Vault first (native)
+cd ~/auth-vault && ./auth-vault.sh start
 
 # Start the application
-cd /Users/macbook/OSPF-LL-DEVICE_MANAGER && ./start.sh
+cd ~/OSPF-LL-DEVICE_MANAGER && ./start.sh
 
 # Verify
 curl http://localhost:9051/api/health
@@ -550,9 +553,9 @@ for port in 9040 9041 9042 9050 9051 9080 9081 9090 9091 9100 9101; do
     lsof -ti :$port | xargs kill -9 2>/dev/null || true
 done
 
-# Stop Auth-Vault
-cd /Users/macbook/auth-vault
-docker compose down
+# Stop Auth-Vault (native)
+cd ~/auth-vault
+./auth-vault.sh stop
 
 echo "All applications stopped!"
 ```
