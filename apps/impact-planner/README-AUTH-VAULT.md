@@ -203,10 +203,24 @@ curl http://localhost:9091/api/auth/config
 
 ## Security Features
 
+- **PKCE (Proof Key for Code Exchange)**: S256 code challenge for public clients
 - **JWKS Token Verification**: RS256 with key rotation support
 - **Automatic Token Refresh**: Frontend handles token expiry
 - **Graceful Degradation**: Falls back to legacy auth if Keycloak unavailable
 - **Secrets from Vault**: JWT secret fetched from Vault when available
+
+### PKCE Implementation
+
+The frontend uses PKCE for secure authorization code flow:
+
+```
+1. Generate code_verifier (32 random bytes, base64url)
+2. Generate code_challenge = SHA256(code_verifier), base64url
+3. Send code_challenge + code_challenge_method=S256 in auth request
+4. Send code_verifier in token exchange
+```
+
+This prevents authorization code interception attacks.
 
 ## Troubleshooting
 
