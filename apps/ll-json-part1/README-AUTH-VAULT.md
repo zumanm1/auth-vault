@@ -70,10 +70,7 @@ KEYCLOAK_CLIENT_ID=netviz-pro-api
 
 # Vault Configuration
 VAULT_ADDR=http://localhost:9121
-VAULT_ROLE_ID=<from-vault-init>
-VAULT_SECRET_ID=<from-vault-init>
-# OR use token auth:
-VAULT_TOKEN=<vault-token>
+VAULT_TOKEN=<your-vault-token>
 ```
 
 ### Keycloak Realm Details
@@ -175,9 +172,10 @@ curl http://localhost:9041/api/health
 
 # Response includes:
 {
-  "status": "healthy",
-  "authVault": "active",    # or "inactive"
-  "authMode": "keycloak"    # or "legacy"
+  "status": "ok",
+  "database": "connected",   # or "disconnected"
+  "authVault": "active",     # or "inactive"
+  "authMode": "keycloak"     # or "legacy"
 }
 
 # Check auth config (for frontend)

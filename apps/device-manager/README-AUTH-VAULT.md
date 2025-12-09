@@ -79,10 +79,7 @@ KEYCLOAK_CLIENT_ID=device-manager-api
 
 # Vault Configuration
 VAULT_ADDR=http://localhost:9121
-VAULT_ROLE_ID=<from-vault-init>
-VAULT_SECRET_ID=<from-vault-init>
-# OR use token auth:
-VAULT_TOKEN=<vault-token>
+VAULT_TOKEN=<your-vault-token>
 ```
 
 ### Python Dependencies

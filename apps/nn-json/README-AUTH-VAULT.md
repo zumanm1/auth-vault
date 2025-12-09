@@ -66,14 +66,11 @@ This application has been fully integrated with the Auth-Vault infrastructure (K
 # Keycloak Configuration
 KEYCLOAK_URL=http://localhost:9120
 KEYCLOAK_REALM=ospf-nn-json
-KEYCLOAK_CLIENT_ID=visualizer-pro-api
+KEYCLOAK_CLIENT_ID=nn-json-api
 
 # Vault Configuration
 VAULT_ADDR=http://localhost:9121
-VAULT_ROLE_ID=<from-vault-init>
-VAULT_SECRET_ID=<from-vault-init>
-# OR use token auth:
-VAULT_TOKEN=<vault-token>
+VAULT_TOKEN=<your-vault-token>
 ```
 
 ### Keycloak Realm Details
