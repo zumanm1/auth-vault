@@ -72,15 +72,18 @@ This application has been fully integrated with the Auth-Vault infrastructure (K
 ### Environment Variables
 
 ```bash
-# Keycloak Configuration
+# Keycloak Configuration (Backend)
 KEYCLOAK_URL=http://localhost:9120
 KEYCLOAK_REALM=ospf-impact-planner
-KEYCLOAK_CLIENT_ID=impact-planner-api
+KEYCLOAK_CLIENT_ID=impact-planner-api           # Backend client (confidential)
+KEYCLOAK_FRONTEND_CLIENT_ID=impact-planner-frontend  # Frontend client (public, for SSO)
 
 # Vault Configuration
 VAULT_ADDR=http://localhost:9121
 VAULT_TOKEN=<your-vault-token>
 ```
+
+> **Note:** The `/api/auth/config` endpoint returns `KEYCLOAK_FRONTEND_CLIENT_ID` (defaults to `impact-planner-frontend`) for the frontend OIDC flow. The backend uses `KEYCLOAK_CLIENT_ID` for token verification.
 
 ### Keycloak Realm Details
 
