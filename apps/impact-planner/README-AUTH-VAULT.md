@@ -95,7 +95,7 @@ VAULT_TOKEN=<your-vault-token>
 
 | Username | Password | Role |
 |----------|----------|------|
-| `impact-admin` | `ChangeMe!Admin2025` | admin |
+| `netviz_admin` | `V3ry$trongAdm1n!2025` | admin |
 | `impact-user` | `ChangeMe!User2025` | user |
 
 ### Vault Secret Paths
