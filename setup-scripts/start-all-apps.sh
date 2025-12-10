@@ -45,10 +45,10 @@ declare -A APP_NAMES=(
 declare -A APP_START_SCRIPTS=(
     [0]="./auth-vault.sh start"
     [1]="./ospf-planner.sh start"
-    [2]="./netviz.sh start"
-    [3]="./nn-json.sh start"
+    [2]="./netviz-pro/netviz.sh start"
+    [3]="./netviz.sh start"
     [4]="./ospf-tempo-x.sh start"
-    [5]="./ospf-device-manager.sh start"
+    [5]="./start.sh"
 )
 
 declare -A APP_PORTS=(
