@@ -141,6 +141,42 @@ EOF
             log_success "Generated new backend/.env with fresh credentials"
         fi
 
+        # Create frontend .env.local if missing (restore from backup or create new)
+        if [ ! -f ".env.local" ]; then
+            if [ -f ".env.local.backup-before-removal" ]; then
+                cp .env.local.backup-before-removal .env.local
+                log_success "Restored .env.local from backup"
+            else
+                # Create minimal .env.local for frontend
+                cat > .env.local << EOF
+# NetMan OSPF Device Manager - Frontend Configuration
+# Auto-generated on $(date)
+
+# Security
+SECURITY_ENABLED=true
+APP_ADMIN_USERNAME=netviz_admin
+APP_ADMIN_PASSWORD=${ADMIN_PASS}
+APP_SECRET_KEY=${SECRET_KEY}
+APP_SESSION_TIMEOUT=3600
+APP_LOGIN_MAX_USES=0
+
+# Access Control
+LOCALHOST_ONLY=false
+ALLOWED_HOSTS=127.0.0.1,localhost
+
+# Backend API
+VITE_API_URL=http://localhost:$BACKEND_PORT
+
+# Jumphost (default disabled)
+JUMPHOST_ENABLED=false
+JUMPHOST_HOST=
+JUMPHOST_USERNAME=
+JUMPHOST_PASSWORD=
+EOF
+                log_success "Created new .env.local for frontend"
+            fi
+        fi
+
         # Store credentials for display
         echo "$ADMIN_PASS" > /tmp/.devmgr_admin_pass_$$
 
