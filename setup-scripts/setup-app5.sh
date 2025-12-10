@@ -95,6 +95,13 @@ install_app() {
         chmod +x ./install.sh
         ./install.sh
 
+        # Remove old users database to ensure fresh credentials work
+        if [ -f "backend/users.db" ]; then
+            log_step "Removing old users database for fresh credentials..."
+            rm -f backend/users.db
+            log_success "Old users database removed"
+        fi
+
         # Generate new credentials for fresh install
         log_step "Generating secure credentials..."
         local creds=$(generate_credentials)
