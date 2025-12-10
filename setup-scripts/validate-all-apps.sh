@@ -76,6 +76,44 @@ declare -A APP_DATABASES=(
     [5]="ospf_device_manager"
 )
 
+# Frontend URLs for each app
+declare -A APP_FRONTEND_URLS=(
+    [0]="http://localhost:9120/admin"
+    [1]="http://localhost:9090"
+    [2]="http://localhost:9042"
+    [3]="http://localhost:9080"
+    [4]="http://localhost:9100"
+    [5]="http://localhost:9050"
+)
+
+# Auth config endpoints
+declare -A APP_AUTH_CONFIG=(
+    [1]="http://localhost:9091/api/auth/config"
+    [3]="http://localhost:9081/api/auth/config"
+    [4]="http://localhost:9101/api/auth/config"
+    [5]="http://localhost:9051/api/auth/config"
+)
+
+# API root endpoints (for CORS/API check)
+declare -A APP_API_ROOT=(
+    [1]="http://localhost:9091"
+    [2]="http://localhost:9040"
+    [3]="http://localhost:9081"
+    [4]="http://localhost:9101"
+    [5]="http://localhost:9051"
+)
+
+# App components - what each app has
+# Format: "frontend backend api database auth cors websocket"
+declare -A APP_COMPONENTS=(
+    [0]="keycloak vault"
+    [1]="frontend backend api database auth"
+    [2]="gateway auth-server vite"
+    [3]="frontend backend api auth"
+    [4]="frontend backend api database auth"
+    [5]="frontend backend api database auth"
+)
+
 #-------------------------------------------------------------------------------
 # Counters
 #-------------------------------------------------------------------------------
@@ -178,6 +216,50 @@ check_postgres_db() {
 
 check_postgres_running() {
     pg_isready -q 2>/dev/null
+}
+
+#-------------------------------------------------------------------------------
+# Check Frontend Response
+#-------------------------------------------------------------------------------
+check_frontend() {
+    local url=$1
+    local response_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "$url" 2>/dev/null)
+    [ "$response_code" = "200" ]
+}
+
+#-------------------------------------------------------------------------------
+# Check API CORS headers
+#-------------------------------------------------------------------------------
+check_cors() {
+    local url=$1
+    local cors_header=$(curl -s -I --connect-timeout 5 "$url" 2>/dev/null | grep -i "access-control-allow")
+    [ -n "$cors_header" ]
+}
+
+#-------------------------------------------------------------------------------
+# Check Auth Config
+#-------------------------------------------------------------------------------
+check_auth_config() {
+    local url=$1
+    local response=$(curl -s --connect-timeout 5 "$url" 2>/dev/null)
+    if [ -n "$response" ]; then
+        echo "$response"
+        return 0
+    fi
+    return 1
+}
+
+#-------------------------------------------------------------------------------
+# Parse Health Response
+#-------------------------------------------------------------------------------
+parse_health_response() {
+    local response=$1
+    local db_status=$(echo "$response" | grep -oE '"database"\s*:\s*"[^"]*"' | head -1 | cut -d'"' -f4)
+    local auth_mode=$(echo "$response" | grep -oE '"authMode"\s*:\s*"[^"]*"' | head -1 | cut -d'"' -f4)
+    local auth_vault=$(echo "$response" | grep -oE '"authVault"\s*:\s*"[^"]*"' | head -1 | cut -d'"' -f4)
+    local status=$(echo "$response" | grep -oE '"status"\s*:\s*"[^"]*"' | head -1 | cut -d'"' -f4)
+
+    echo "status:$status|db:$db_status|authMode:$auth_mode|authVault:$auth_vault"
 }
 
 #-------------------------------------------------------------------------------
@@ -374,6 +456,68 @@ validate_app() {
     # Special App0: Display Vault credentials and Service URLs
     if [ "$app_num" -eq 0 ]; then
         display_app0_credentials "$app_path"
+    fi
+
+    # Check 4b: Component-specific checks (Frontend, API, Auth, CORS)
+    local components="${APP_COMPONENTS[$app_num]}"
+    local frontend_url="${APP_FRONTEND_URLS[$app_num]}"
+    local auth_config_url="${APP_AUTH_CONFIG[$app_num]}"
+    local api_root="${APP_API_ROOT[$app_num]}"
+
+    echo -e "  ${CYAN}Component Checks:${NC}"
+    log_check "INFO" "Components: $components"
+
+    # Frontend check
+    if [ -n "$frontend_url" ]; then
+        if check_frontend "$frontend_url"; then
+            log_check "PASS" "Frontend responding: $frontend_url"
+            app_passed=$((app_passed + 1))
+        else
+            log_check "FAIL" "Frontend not responding: $frontend_url"
+            app_failed=$((app_failed + 1))
+            issues="${issues}Frontend down; "
+        fi
+    fi
+
+    # API root check
+    if [ -n "$api_root" ]; then
+        local api_response=$(curl -s --connect-timeout 5 "$api_root" 2>/dev/null)
+        if [ -n "$api_response" ]; then
+            log_check "PASS" "API root accessible: $api_root"
+            app_passed=$((app_passed + 1))
+        else
+            log_check "WARN" "API root not responding: $api_root"
+            app_warnings=$((app_warnings + 1))
+        fi
+    fi
+
+    # Auth config check
+    if [ -n "$auth_config_url" ]; then
+        local auth_response=$(curl -s --connect-timeout 5 "$auth_config_url" 2>/dev/null)
+        if [ -n "$auth_response" ]; then
+            local auth_mode=$(echo "$auth_response" | grep -oE '"auth[Mm]ode"\s*:\s*"[^"]*"' | head -1 | cut -d'"' -f4)
+            if [ -n "$auth_mode" ]; then
+                log_check "PASS" "Auth config: mode=$auth_mode"
+                app_passed=$((app_passed + 1))
+            else
+                log_check "WARN" "Auth config returned but mode unclear"
+                app_warnings=$((app_warnings + 1))
+            fi
+        else
+            log_check "WARN" "Auth config not accessible: $auth_config_url"
+            app_warnings=$((app_warnings + 1))
+        fi
+    fi
+
+    # CORS check (send OPTIONS request)
+    if [ -n "$api_root" ]; then
+        local cors_headers=$(curl -s -I -X OPTIONS --connect-timeout 5 "$api_root" 2>/dev/null | grep -i "access-control")
+        if [ -n "$cors_headers" ]; then
+            log_check "PASS" "CORS headers present"
+            app_passed=$((app_passed + 1))
+        else
+            log_check "INFO" "CORS headers not detected (may be configured differently)"
+        fi
     fi
 
     # Check 5: Environment file
