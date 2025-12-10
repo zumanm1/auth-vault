@@ -42,8 +42,11 @@ PORT_APP4_BACKEND=9101
 PORT_APP5_FRONTEND=9050
 PORT_APP5_BACKEND=9051
 
-# All ports list
-ALL_PORTS="$PORT_KEYCLOAK $PORT_VAULT $PORT_APP1_FRONTEND $PORT_APP1_BACKEND $PORT_APP2_FRONTEND $PORT_APP2_BACKEND $PORT_APP3_FRONTEND $PORT_APP3_BACKEND $PORT_APP4_FRONTEND $PORT_APP4_BACKEND $PORT_APP5_FRONTEND $PORT_APP5_BACKEND"
+# Additional internal ports
+PORT_APP2_INTERNAL=9042
+
+# All ports list (including internal ports)
+ALL_PORTS="$PORT_KEYCLOAK $PORT_VAULT $PORT_APP1_FRONTEND $PORT_APP1_BACKEND $PORT_APP2_FRONTEND $PORT_APP2_BACKEND $PORT_APP2_INTERNAL $PORT_APP3_FRONTEND $PORT_APP3_BACKEND $PORT_APP4_FRONTEND $PORT_APP4_BACKEND $PORT_APP5_FRONTEND $PORT_APP5_BACKEND"
 
 # Log file
 LOG_DIR="$SCRIPT_DIR/logs"
@@ -186,10 +189,18 @@ start_app0() {
 
     if [ "$sealed" = "true" ]; then
         log_info "Unsealing Vault..."
-        local unseal_key=$(cat "$APP0_DIR/data/vault/vault-keys.json" 2>/dev/null | grep -o '"unseal_keys_b64":\s*\["[^"]*"' | sed 's/.*\["//' | sed 's/".*//')
-        if [ -n "$unseal_key" ]; then
+        local unseal_key=""
+        # Use jq if available, otherwise use grep
+        if command -v jq >/dev/null 2>&1; then
+            unseal_key=$(jq -r '.unseal_keys_b64[0]' "$APP0_DIR/data/vault/vault-keys.json" 2>/dev/null)
+        else
+            # Fallback to grep - extract the first unseal key from the JSON
+            unseal_key=$(grep -o '"unseal_keys_b64"[[:space:]]*:[[:space:]]*\[[^]]*\]' "$APP0_DIR/data/vault/vault-keys.json" 2>/dev/null | grep -o '"[A-Za-z0-9+/=]*"' | head -1 | tr -d '"')
+        fi
+        if [ -n "$unseal_key" ] && [ "$unseal_key" != "null" ]; then
             export VAULT_ADDR=http://localhost:$PORT_VAULT
             "$APP0_DIR/bin/vault" operator unseal "$unseal_key" 2>/dev/null || true
+            log_success "Vault unsealed"
         else
             log_warning "No unseal key found. Please unseal Vault manually."
         fi
@@ -373,12 +384,26 @@ start_python_app() {
     # Start backend
     if [ -d "backend" ]; then
         cd backend
-        if [ -d "venv" ]; then
-            . venv/bin/activate
-            nohup python app.py > "$LOG_DIR/${app_name}-backend.log" 2>&1 &
-            deactivate 2>/dev/null || true
+        # Determine the correct Python entry point
+        local python_entry=""
+        if [ -f "server.py" ]; then
+            python_entry="server.py"
+        elif [ -f "app.py" ]; then
+            python_entry="app.py"
+        elif [ -f "main.py" ]; then
+            python_entry="main.py"
+        fi
+
+        if [ -n "$python_entry" ]; then
+            if [ -d "venv" ]; then
+                . venv/bin/activate
+                nohup python "$python_entry" > "$LOG_DIR/${app_name}-backend.log" 2>&1 &
+                deactivate 2>/dev/null || true
+            else
+                nohup python3 "$python_entry" > "$LOG_DIR/${app_name}-backend.log" 2>&1 &
+            fi
         else
-            nohup python3 app.py > "$LOG_DIR/${app_name}-backend.log" 2>&1 &
+            log_warning "No Python entry point found for $app_name backend"
         fi
         cd ..
     fi
