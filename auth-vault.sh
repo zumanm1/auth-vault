@@ -407,7 +407,7 @@ hostname-strict-https=false
 # Database (H2 embedded - for development)
 # For production, use PostgreSQL
 db=dev-file
-db-url=jdbc:h2:file:${DATA_DIR}/keycloak/keycloakdb;AUTO_SERVER=TRUE
+db-url=jdbc:h2:file:${DATA_DIR}/keycloak/keycloakdb;AUTO_SERVER=TRUE;NON_KEYWORDS=VALUE
 
 # Health and Metrics
 health-enabled=true

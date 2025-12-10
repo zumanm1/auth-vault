@@ -459,11 +459,18 @@ vault auth enable oidc 2>/dev/null || echo "OIDC auth already enabled"
 
 # Wait for Keycloak to be ready
 echo "Waiting for Keycloak to be ready at ${KC_URL}..."
-until wget -q --spider "${KC_URL}/realms/master" 2>/dev/null; do
-  echo "Keycloak not ready yet, waiting..."
-  sleep 5
+max_attempts=60
+attempt=0
+until curl -s "${KC_URL}/health/ready" >/dev/null 2>&1 || [ $attempt -ge $max_attempts ]; do
+  echo "Keycloak not ready yet, waiting... (attempt $((attempt+1))/$max_attempts)"
+  sleep 3
+  attempt=$((attempt+1))
 done
-echo "Keycloak is ready!"
+if [ $attempt -ge $max_attempts ]; then
+  echo "WARNING: Keycloak may not be fully ready, but continuing..."
+else
+  echo "Keycloak is ready!"
+fi
 
 # Note: OIDC configuration should be done after realms are imported
 # This is a placeholder - actual configuration requires realm-specific client secrets
