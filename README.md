@@ -172,25 +172,62 @@ curl http://localhost:9121/v1/sys/health
 
 ### App1: Impact Planner
 
-**Ports:** 9090 (Frontend), 9091 (Backend)
+**GitHub Repository:** https://github.com/zumanm1/ospf-impact-planner
+
+**Ports:**
+- 9090 - Frontend (Vite React)
+- 9091 - Backend API (Express + PostgreSQL)
+
+**Description:** Network infrastructure impact analysis and cost planning tool. Provides multi-site network modeling with real-time cost calculations.
+
+**Features:**
+- Network infrastructure impact analysis
+- Cost planning and optimization
+- Multi-site network modeling
+- Integration with Auth-Vault for authentication
+- PostgreSQL database backend
+
+**Prerequisites:**
+- Node.js v18+ (v20+ recommended)
+- PostgreSQL 14+
+- npm
 
 ```bash
-# Using setup script
+# Using setup script (RECOMMENDED)
 cd setup-scripts
 ./setup-app1.sh setup
 
 # Or manually
 cd app1-impact-planner
-./ospf-planner.sh install
-./ospf-planner.sh deps
-./ospf-planner.sh db-setup
-./ospf-planner.sh start
+./ospf-planner.sh install    # Install Node.js requirements
+./ospf-planner.sh deps       # Install npm dependencies
+./ospf-planner.sh db-setup   # Setup PostgreSQL database
+./ospf-planner.sh start      # Start frontend + backend
 
 # Verify
 curl http://localhost:9091/api/health
+# Expected: {"status":"healthy","database":"connected",...}
 ```
 
-**Access:** http://localhost:9090
+**Access URLs:**
+- Frontend: http://localhost:9090
+- API Health: http://localhost:9091/api/health
+
+**Default Credentials:**
+- Username: `netviz_admin`
+- Password: `V3ry$trongAdm1n!2025`
+
+**Troubleshooting:**
+```bash
+# Check status
+./setup-app1.sh status
+
+# Restart services
+cd app1-impact-planner && ./ospf-planner.sh stop && ./ospf-planner.sh start
+
+# View logs
+tail -f app1-impact-planner/.api-server.log
+```
 
 ---
 

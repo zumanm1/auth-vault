@@ -3,7 +3,15 @@
 # OSPF Suite - Comprehensive Validation Script
 # Purpose: Validate all apps (App0-App5) are running correctly
 # Author: OSPF Suite DevOps
-# Version: 1.0.0
+# Version: 1.1.0
+#
+# Apps Validated:
+#   App0 - Auth-Vault:     9120, 9121  (github.com/zumanm1/auth-vault)
+#   App1 - Impact Planner: 9090, 9091  (github.com/zumanm1/ospf-impact-planner)
+#   App2 - NetViz Pro:     9040-9042   (github.com/zumanm1/OSPF-LL-JSON-PART1)
+#   App3 - NN-JSON:        9080, 9081  (github.com/zumanm1/OSPF-NN-JSON)
+#   App4 - Tempo-X:        9100, 9101  (github.com/zumanm1/OSPF-TEMPO-X)
+#   App5 - Device Manager: 9050, 9051  (github.com/zumanm1/OSPF2-LL-DEVICE_MANAGER)
 #===============================================================================
 
 set -e
