@@ -136,7 +136,7 @@ JWT_EXPIRES_IN=7d
 #-------------------------------------------------------------------------------
 # Admin Credentials (Renewed on fresh install)
 #-------------------------------------------------------------------------------
-ADMIN_USERNAME=tempo_admin
+ADMIN_USERNAME=netviz_admin
 ADMIN_PASSWORD=${ADMIN_PASS}
 EOF
             log_success "Generated new .env with fresh credentials"
@@ -278,7 +278,7 @@ full_setup() {
     echo -e "${CYAN}                    CREDENTIALS${NC}"
     echo -e "${CYAN}============================================================${NC}"
     echo ""
-    echo -e "  ${YELLOW}Username:${NC} tempo_admin"
+    echo -e "  ${YELLOW}Username:${NC} netviz_admin"
     if [ -f /tmp/.tempox_admin_pass_$$ ]; then
         local admin_pass=$(cat /tmp/.tempox_admin_pass_$$)
         echo -e "  ${YELLOW}Password:${NC} $admin_pass"
