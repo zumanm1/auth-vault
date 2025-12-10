@@ -156,6 +156,14 @@ auth-vault/
 ├── docker-compose.yml         # Alternative Docker setup
 ├── .env.example               # Environment template
 ├── .env                       # Local configuration (gitignored)
+├── setup-scripts/             # OSPF Suite orchestration scripts
+│   ├── setup-all-apps.sh      # Master orchestrator for all 6 apps
+│   ├── setup-app0.sh          # Auth-Vault setup
+│   ├── setup-app1.sh          # Impact Planner setup
+│   ├── setup-app2.sh          # NetViz Pro setup
+│   ├── setup-app3.sh          # NN-JSON setup
+│   ├── setup-app4.sh          # Tempo-X setup
+│   └── setup-app5.sh          # Device Manager setup
 ├── keycloak/
 │   ├── realms/                # Realm configurations (auto-imported)
 │   │   ├── realm-ospf-impact-planner.json
@@ -380,6 +388,114 @@ See the README in each app's directory under `apps/`:
 - [OSPF Visualizer Pro (NN-JSON)](./apps/nn-json/README.md)
 - [OSPF Tempo-X](./apps/tempo-x/README.md)
 - [OSPF Device Manager](./apps/device-manager/README.md)
+
+---
+
+## OSPF Suite Setup Scripts
+
+The `setup-scripts/` directory contains orchestration scripts for installing, configuring, and managing all 6 OSPF applications with a single command.
+
+### Quick Start - Full Suite Setup
+
+```bash
+# Setup all 6 applications with one command
+cd auth-vault/setup-scripts
+./setup-all-apps.sh setup
+```
+
+This will:
+1. Install and start Auth-Vault (Keycloak + Vault)
+2. Install and start all 5 OSPF applications
+3. Generate fresh credentials for each app
+4. Display status and credentials summary
+
+### Setup Order
+
+The scripts install apps in the following order to ensure dependencies are met:
+
+```
+App0 (Auth-Vault) → App3 (NN-JSON) → App4 (Tempo-X) →
+App2 (NetViz Pro) → App1 (Impact Planner) → App5 (Device Manager)
+```
+
+### Available Scripts
+
+| Script | Description | Ports |
+|--------|-------------|-------|
+| `setup-all-apps.sh` | **Master orchestrator** - runs all 6 apps | All |
+| `setup-app0.sh` | Auth-Vault (Keycloak + HashiCorp Vault) | 9120, 9121 |
+| `setup-app1.sh` | Impact Planner | 9090, 9091 |
+| `setup-app2.sh` | NetViz Pro | 9040, 9041, 9042 |
+| `setup-app3.sh` | NN-JSON | 9080, 9081 |
+| `setup-app4.sh` | Tempo-X | 9100, 9101 |
+| `setup-app5.sh` | Device Manager | 9050, 9051 |
+
+### Commands
+
+Each script supports the following commands:
+
+```bash
+./setup-appX.sh setup      # Full setup (install + start)
+./setup-appX.sh install    # Install dependencies only
+./setup-appX.sh start      # Start services
+./setup-appX.sh stop       # Stop services
+./setup-appX.sh status     # Show service status
+./setup-appX.sh help       # Show help
+```
+
+### Master Orchestrator Commands
+
+```bash
+./setup-all-apps.sh setup   # Full setup all 6 applications
+./setup-all-apps.sh start   # Start all (without reinstalling)
+./setup-all-apps.sh stop    # Stop all applications
+./setup-all-apps.sh status  # Show status of all applications
+```
+
+### Setup Output
+
+After running `./setup-all-apps.sh setup`, you'll see:
+
+```
+Service URLs and Credentials:
+
+  | App  | Name           | Frontend URL                | Backend Port | Status |
+  |------|----------------|-----------------------------|--------------|--------|
+  | App0 | Auth-Vault     | http://localhost:9120/admin | 9121         | ✅ UP   |
+  | App1 | Impact Planner | http://localhost:9090       | 9091         | ✅ UP   |
+  | App2 | NetViz Pro     | http://localhost:9040       | 9041         | ✅ UP   |
+  | App3 | NN-JSON        | http://localhost:9080       | 9081         | ✅ UP   |
+  | App4 | Tempo-X        | http://localhost:9100       | 9101         | ✅ UP   |
+  | App5 | Device Manager | http://localhost:9050       | 9051         | ✅ UP   |
+
+  Auth-Vault Credentials:
+  ============================================================
+                VAULT CREDENTIALS
+  ============================================================
+  Vault Unseal Key: <generated>
+  Vault Root Token: <generated>
+
+  ============================================================
+                SERVICE URLs
+  ============================================================
+  Keycloak Admin Console: http://localhost:9120/admin
+    - Username: admin
+    - Password: admin
+
+  Vault UI: http://localhost:9121/ui
+    - Token: <root_token>
+  ============================================================
+```
+
+### Credential Regeneration
+
+Credentials are **automatically regenerated** on fresh install:
+- JWT secrets
+- Admin passwords
+- API keys
+- Vault tokens
+
+This ensures each installation has unique, secure credentials.
 
 ---
 
