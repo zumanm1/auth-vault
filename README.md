@@ -163,7 +163,8 @@ auth-vault/
 │   ├── setup-app2.sh          # NetViz Pro setup
 │   ├── setup-app3.sh          # NN-JSON setup
 │   ├── setup-app4.sh          # Tempo-X setup
-│   └── setup-app5.sh          # Device Manager setup
+│   ├── setup-app5.sh          # Device Manager setup
+│   └── validate-all-apps.sh   # Validation script for all apps
 ├── keycloak/
 │   ├── realms/                # Realm configurations (auto-imported)
 │   │   ├── realm-ospf-impact-planner.json
@@ -429,6 +430,7 @@ App2 (NetViz Pro) → App1 (Impact Planner) → App5 (Device Manager)
 | `setup-app3.sh` | NN-JSON | 9080, 9081 |
 | `setup-app4.sh` | Tempo-X | 9100, 9101 |
 | `setup-app5.sh` | Device Manager | 9050, 9051 |
+| `validate-all-apps.sh` | **Validation** - checks all apps status, logs, health | All |
 
 ### Commands
 
@@ -741,6 +743,123 @@ cd app4-tempo-x && ./ospf-tempo-x.sh start
 
 # App5 - Device Manager
 cd app5-device-manager && ./start.sh
+```
+
+---
+
+## Validation Script
+
+The `validate-all-apps.sh` script provides comprehensive validation for all 6 OSPF applications.
+
+### Usage
+
+```bash
+cd auth-vault/setup-scripts
+
+# Full validation with detailed output
+./validate-all-apps.sh validate
+
+# Quick status check (returns exit code 0/1 for CI)
+./validate-all-apps.sh quick
+
+# Port status only
+./validate-all-apps.sh status
+
+# JSON output for automation
+./validate-all-apps.sh json > status.json
+
+# Help
+./validate-all-apps.sh help
+```
+
+### Validation Checks
+
+The script performs the following checks for each app:
+
+| Check | Description |
+|-------|-------------|
+| Directory | Verifies app directory exists |
+| Ports | Checks all service ports are listening |
+| Health Endpoints | Tests API health endpoints |
+| Database | Checks PostgreSQL connection and database existence |
+| Configuration | Verifies .env file exists and has no placeholders |
+| Log Analysis | Scans log files for errors and displays recent entries |
+
+### Port Overview
+
+| App | Name | Ports |
+|-----|------|-------|
+| App0 | Auth-Vault | Keycloak: 9120, Vault: 9121 |
+| App1 | Impact Planner | Frontend: 9090, Backend: 9091 |
+| App2 | NetViz Pro | Gateway: 9040, Auth: 9041, Vite: 9042 |
+| App3 | NN-JSON | Frontend: 9080, Backend: 9081 |
+| App4 | Tempo-X | Frontend: 9100, Backend: 9101 |
+| App5 | Device Manager | Frontend: 9050, Backend: 9051 |
+
+### Sample Output
+
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║  OSPF Suite - Comprehensive Validation                                ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+App0: Auth-Vault
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [PASS] Directory exists: app0-auth-vault
+  [PASS] Keycloak port 9120 is listening
+  [PASS] Vault port 9121 is listening
+
+  ============================================================
+              VAULT CREDENTIALS
+  ============================================================
+  Vault Unseal Key: <generated-key>
+  Vault Root Token: <generated-token>
+
+  ============================================================
+              SERVICE URLs
+  ============================================================
+  Keycloak Admin Console: http://localhost:9120/admin
+    - Username: admin
+    - Password: admin
+
+  Vault UI: http://localhost:9121/ui
+    - Token: <root_token>
+  ============================================================
+
+╔══════════════════════════════════════════════════════════════════════╗
+║  VALIDATION SUMMARY                                                   ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+  Overall Statistics:
+    Total Checks:  47
+    Passed:        33
+    Failed:        0
+    Warnings:      8
+
+  Success Rate: 70%
+
+  Final Verdict:
+  SYSTEMS OPERATIONAL WITH WARNINGS
+  All apps are running but some warnings need attention.
+```
+
+### Log Analysis
+
+When errors are detected in log files, the script displays:
+- Log file names with sizes
+- Error count per file
+- Recent error entries (truncated for readability)
+
+```
+  Log Analysis:
+  [INFO] Log files: frontend.log(2.1K, 4 errors) backend.log(15K, 2 errors)
+  [WARN] 6 potential errors in logs
+    Recent error entries:
+    [frontend.log]:
+      [ERROR] Failed to fetch user data: Network error
+      [ERROR] WebSocket connection failed
+    [backend.log]:
+      [ERROR] Database connection timeout
 ```
 
 ---

@@ -181,6 +181,33 @@ check_postgres_running() {
 }
 
 #-------------------------------------------------------------------------------
+# Show recent log errors
+#-------------------------------------------------------------------------------
+show_recent_log_errors() {
+    local log_dir=$1
+    local max_lines=${2:-5}
+
+    echo -e "    ${YELLOW}Recent error entries:${NC}"
+    for log_file in "$log_dir"/*.log; do
+        if [ -f "$log_file" ]; then
+            local log_name=$(basename "$log_file")
+            local recent_errors=$(grep -iE "error|exception|fatal|failed" "$log_file" 2>/dev/null | tail -n "$max_lines")
+            if [ -n "$recent_errors" ]; then
+                echo -e "    ${CYAN}[$log_name]:${NC}"
+                echo "$recent_errors" | while IFS= read -r line; do
+                    # Truncate long lines
+                    if [ ${#line} -gt 100 ]; then
+                        echo -e "      ${RED}${line:0:100}...${NC}"
+                    else
+                        echo -e "      ${RED}${line}${NC}"
+                    fi
+                done
+            fi
+        fi
+    done
+}
+
+#-------------------------------------------------------------------------------
 # Display App0 Credentials and Service URLs
 #-------------------------------------------------------------------------------
 display_app0_credentials() {
@@ -380,29 +407,42 @@ validate_app() {
     if [ -d "$log_dir" ]; then
         local error_count=0
         local has_logs=false
+        local log_files_found=""
         for log_file in "$log_dir"/*.log; do
             if [ -f "$log_file" ]; then
                 has_logs=true
+                local log_name=$(basename "$log_file")
+                local file_size=$(ls -lh "$log_file" 2>/dev/null | awk '{print $5}')
                 local errors
                 errors=$(grep -ciE "error|exception|fatal|failed" "$log_file" 2>/dev/null | head -1 || true)
                 if [[ "$errors" =~ ^[0-9]+$ ]]; then
                     error_count=$((error_count + errors))
+                    log_files_found="${log_files_found}${log_name}(${file_size}, ${errors} errors) "
+                else
+                    log_files_found="${log_files_found}${log_name}(${file_size}) "
                 fi
             fi
         done
 
         if [ "$has_logs" = false ]; then
             log_check "INFO" "No log files found"
-        elif [ "$error_count" -eq 0 ]; then
-            log_check "PASS" "No errors in log files"
-            app_passed=$((app_passed + 1))
-        elif [ "$error_count" -lt 10 ]; then
-            log_check "WARN" "$error_count potential errors in logs"
-            app_warnings=$((app_warnings + 1))
         else
-            log_check "WARN" "$error_count errors found in logs (review recommended)"
-            app_warnings=$((app_warnings + 1))
-            issues="${issues}Errors in logs; "
+            log_check "INFO" "Log files: $log_files_found"
+            if [ "$error_count" -eq 0 ]; then
+                log_check "PASS" "No errors in log files"
+                app_passed=$((app_passed + 1))
+            elif [ "$error_count" -lt 10 ]; then
+                log_check "WARN" "$error_count potential errors in logs"
+                app_warnings=$((app_warnings + 1))
+                # Show recent errors
+                show_recent_log_errors "$log_dir" 3
+            else
+                log_check "WARN" "$error_count errors found in logs (review recommended)"
+                app_warnings=$((app_warnings + 1))
+                issues="${issues}Errors in logs; "
+                # Show recent errors
+                show_recent_log_errors "$log_dir" 5
+            fi
         fi
     else
         log_check "INFO" "No log directory found"
