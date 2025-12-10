@@ -708,6 +708,43 @@ echo "Device Manager (9051): $(curl -s http://localhost:9051/api/health 2>/dev/n
 
 MIT
 
+## Scripts Summary - All Apps
+
+The following table shows the main scripts for each application and their locations:
+
+| App | Main Script | Location | Commands |
+|-----|-------------|----------|----------|
+| App0 | setup-app0.sh to setup-app5.sh | app0-auth-vault/setup-scripts/ | setup, install, start, stop, status |
+| App1 | ospf-planner.sh | app1-impact-planner/ | setup, start, stop, status |
+| App2 | netviz.sh | app2-netviz-pro/netviz-pro/ | start, stop, status, install |
+| App3 | netviz.sh | app3-nn-json/ | start, stop, status |
+| App4 | ospf-tempo-x.sh | app4-tempo-x/ | setup, start, stop, status |
+| App5 | start.sh, stop.sh, install.sh | app5-device-manager/ | individual scripts |
+
+### Individual App Start Commands
+
+```bash
+# App0 - Auth-Vault
+cd app0-auth-vault && ./auth-vault.sh start
+
+# App1 - Impact Planner
+cd app1-impact-planner && ./ospf-planner.sh start
+
+# App2 - NetViz Pro
+cd app2-netviz-pro/netviz-pro && ./netviz.sh start
+
+# App3 - NN-JSON
+cd app3-nn-json && ./netviz.sh start
+
+# App4 - Tempo-X
+cd app4-tempo-x && ./ospf-tempo-x.sh start
+
+# App5 - Device Manager
+cd app5-device-manager && ./start.sh
+```
+
+---
+
 ## Support
 
 For issues and questions:
