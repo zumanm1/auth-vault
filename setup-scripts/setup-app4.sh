@@ -117,6 +117,8 @@ install_app() {
 VITE_PORT=$FRONTEND_PORT
 API_PORT=$BACKEND_PORT
 NODE_ENV=development
+SERVER_HOST=0.0.0.0
+ALLOWED_IPS=0.0.0.0
 
 #-------------------------------------------------------------------------------
 # Database Configuration
