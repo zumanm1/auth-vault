@@ -358,6 +358,47 @@ start_nodejs_app() {
 }
 
 #-------------------------------------------------------------------------------
+# Start App2 (NetViz Pro) - Special 3-process architecture
+# - server/index.js (API on port 9041)
+# - server/gateway.js (Gateway/proxy on port 9040)
+# - vite (Internal frontend on port 9042)
+#-------------------------------------------------------------------------------
+start_app2_netviz() {
+    log_header "Starting app2-netviz-pro"
+
+    if [ ! -d "$APP2_DIR" ]; then
+        log_error "App2 directory not found: $APP2_DIR"
+        return 1
+    fi
+
+    cd "$APP2_DIR"
+
+    # Load nvm
+    load_nvm || log_warning "nvm not found, using system Node.js"
+
+    # Kill existing processes on all 3 ports
+    kill_port $PORT_APP2_FRONTEND   # 9040 - gateway
+    kill_port $PORT_APP2_BACKEND    # 9041 - API
+    kill_port $PORT_APP2_INTERNAL   # 9042 - vite internal
+
+    mkdir -p "$LOG_DIR"
+
+    # Start API server (server/index.js on port 9041)
+    nohup node server/index.js > "$LOG_DIR/app2-netviz-pro-api.log" 2>&1 &
+    sleep 1
+
+    # Start Gateway (server/gateway.js on port 9040)
+    nohup node server/gateway.js > "$LOG_DIR/app2-netviz-pro-gateway.log" 2>&1 &
+    sleep 1
+
+    # Start Vite frontend (internal on port 9042)
+    nohup npm run dev > "$LOG_DIR/app2-netviz-pro-frontend.log" 2>&1 &
+
+    sleep 3
+    log_success "app2-netviz-pro started on ports $PORT_APP2_FRONTEND, $PORT_APP2_BACKEND"
+}
+
+#-------------------------------------------------------------------------------
 # Start Python App (App5)
 #-------------------------------------------------------------------------------
 start_python_app() {
@@ -481,8 +522,8 @@ start_all() {
     # Start App1 (Impact Planner)
     start_nodejs_app "$APP1_DIR" "app1-impact-planner" $PORT_APP1_FRONTEND $PORT_APP1_BACKEND
 
-    # Start App2 (NetViz Pro)
-    start_nodejs_app "$APP2_DIR" "app2-netviz-pro" $PORT_APP2_FRONTEND $PORT_APP2_BACKEND
+    # Start App2 (NetViz Pro) - uses special 3-process startup
+    start_app2_netviz
 
     # Start App3 (NN-JSON)
     start_nodejs_app "$APP3_DIR" "app3-nn-json" $PORT_APP3_FRONTEND $PORT_APP3_BACKEND
