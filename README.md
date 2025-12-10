@@ -233,92 +233,248 @@ tail -f app1-impact-planner/.api-server.log
 
 ### App2: NetViz Pro
 
-**Ports:** 9040 (Gateway), 9041 (Auth Server), 9042 (Vite Dev)
+**GitHub Repository:** https://github.com/zumanm1/OSPF-LL-JSON-PART1
+
+**Ports:**
+- 9040 - Gateway (main entry point)
+- 9041 - Auth Server
+- 9042 - Vite Dev Server
+
+**Description:** Advanced network visualization with real-time monitoring, security headers, and rate limiting.
+
+**Features:**
+- Real-time network topology visualization
+- Helmet security headers (CSP, HSTS, X-Frame-Options)
+- Rate limiting on auth endpoints
+- JWT session management
+- Gateway-based architecture
 
 ```bash
-# Using setup script
+# Using setup script (RECOMMENDED)
 cd setup-scripts
 ./setup-app2.sh setup
 
-# Or manually
-cd app2-netviz-pro
+# Or manually (note: script is in subdirectory)
+cd app2-netviz-pro/netviz-pro
+./netviz.sh install
 ./netviz.sh start
 
 # Verify
-curl http://localhost:9041/health
+curl http://localhost:9040/health
+
+# Check status
+./netviz.sh status
+
+# Stop
+./netviz.sh stop
 ```
 
-**Access:** http://localhost:9042
+**Access URLs:**
+- Main UI: http://localhost:9040 (via Gateway)
+- Vite Dev: http://localhost:9042 (internal)
+- Auth API: http://localhost:9041 (internal)
+
+**Default Credentials:**
+- Username: `netviz_admin`
+- Password: `V3ry$trongAdm1n!2025`
 
 ---
 
 ### App3: NN-JSON
 
-**Ports:** 9080 (Frontend), 9081 (Backend)
+**GitHub Repository:** https://github.com/zumanm1/ospf-nn-json
+
+**Ports:**
+- 9080 - Frontend (Vite React)
+- 9081 - Backend API (Express.js)
+
+**Description:** JSON-based network node visualizer for creating and managing network topology data with an intuitive visual interface.
+
+**Features:**
+- JSON-based network node configuration
+- Visual network topology editing
+- Import/Export network configurations
+- Real-time preview of network changes
+- Auth-Vault integration support
+
+**Prerequisites:**
+- Node.js v18+ (v20+ recommended)
+- npm
 
 ```bash
-# Using setup script
+# Using setup script (RECOMMENDED)
 cd setup-scripts
 ./setup-app3.sh setup
 
 # Or manually
 cd app3-nn-json
-./nn-json.sh install
-./nn-json.sh start
+./netviz.sh install      # Install dependencies
+./netviz.sh start        # Start frontend + backend
 
 # Verify
 curl http://localhost:9081/api/health
+
+# Check status
+./netviz.sh status
+
+# Stop services
+./netviz.sh stop
 ```
 
-**Access:** http://localhost:9080
+**Access URLs:**
+- Frontend: http://localhost:9080
+- API Health: http://localhost:9081/api/health
+
+**Default Credentials:**
+- Username: `netviz_admin`
+- Password: `V3ry$trongAdm1n!2025`
+
+**Troubleshooting:**
+```bash
+# Check status
+./setup-app3.sh status
+
+# Restart services
+cd app3-nn-json && ./netviz.sh stop && ./netviz.sh start
+
+# View logs
+tail -f app3-nn-json/logs/*.log
+```
 
 ---
 
 ### App4: Tempo-X
 
-**Ports:** 9100 (Frontend), 9101 (Backend)
+**GitHub Repository:** https://github.com/zumanm1/ospf-tempo-x
+
+**Ports:**
+- 9100 - Frontend (Vite React)
+- 9101 - Backend API (Express + PostgreSQL)
+
+**Description:** Network topology analyzer and cost planning tool for analyzing network configurations and generating cost optimization reports.
+
+**Features:**
+- Network analysis and cost planning
+- Topology mapping and visualization
+- Cost optimization reports
+- Multi-site network analysis
+- PostgreSQL database backend
+- Auth-Vault integration support
+
+**Prerequisites:**
+- Node.js v18+ (v20+ recommended)
+- PostgreSQL 14+
+- npm
+- nvm (optional, for isolated Node.js)
 
 ```bash
-# Using setup script
+# Using setup script (RECOMMENDED)
 cd setup-scripts
 ./setup-app4.sh setup
 
 # Or manually
 cd app4-tempo-x
-./ospf-tempo-x.sh install
-./ospf-tempo-x.sh deps
-./ospf-tempo-x.sh db-setup
-./ospf-tempo-x.sh start
+./ospf-tempo-x.sh setup      # Install nvm + Node.js v20 (isolated, recommended)
+./ospf-tempo-x.sh deps       # Install npm dependencies
+./ospf-tempo-x.sh db-setup   # Setup PostgreSQL database
+./ospf-tempo-x.sh start      # Start frontend + backend
+
+# Quick start (if Node.js already installed)
+./ospf-tempo-x.sh install && ./ospf-tempo-x.sh deps && ./ospf-tempo-x.sh start
 
 # Verify
 curl http://localhost:9101/api/health
+
+# Check status
+./ospf-tempo-x.sh status
+
+# Stop services
+./ospf-tempo-x.sh stop
 ```
 
-**Access:** http://localhost:9100
+**Access URLs:**
+- Frontend: http://localhost:9100
+- API Health: http://localhost:9101/api/health
+
+**Default Credentials:**
+- Username: `netviz_admin`
+- Password: `V3ry$trongAdm1n!2025`
+
+**Troubleshooting:**
+```bash
+# Check status
+./setup-app4.sh status
+
+# View logs
+./ospf-tempo-x.sh logs
+
+# Restart services
+cd app4-tempo-x && ./ospf-tempo-x.sh restart
+```
 
 ---
 
 ### App5: Device Manager
 
-**Ports:** 9050 (Frontend), 9051 (Backend)
+**GitHub Repository:** https://github.com/zumanm1/ospf-device-manager
+
+**Ports:**
+- 9050 - Frontend (Vite React)
+- 9051 - Backend API (Python Flask)
+
+**Description:** Network device inventory and management system for tracking, configuring, and monitoring network devices across your infrastructure.
+
+**Features:**
+- Network device inventory management
+- Device configuration tracking
+- SSH/SNMP device connectivity
+- Bulk device operations
+- Real-time device status monitoring
+- Auth-Vault integration for secure credentials
+
+**Prerequisites:**
+- Node.js v18+ (v20+ recommended)
+- Python 3.10+
+- pip or uv (Python package manager)
 
 ```bash
-# Using setup script
+# Using setup script (RECOMMENDED)
 cd setup-scripts
 ./setup-app5.sh setup
 
 # Or manually
 cd app5-device-manager
-./ospf-device-manager.sh install
-./ospf-device-manager.sh deps
-./ospf-device-manager.sh db-setup
-./ospf-device-manager.sh start
+./install.sh             # Install dependencies (Node.js + Python)
+./start.sh               # Start frontend + backend
+./start.sh --force       # Force restart without prompts (for automation)
 
 # Verify
 curl http://localhost:9051/api/health
+
+# Stop services
+./stop.sh
 ```
 
-**Access:** http://localhost:9050
+**Access URLs:**
+- Frontend: http://localhost:9050
+- API Health: http://localhost:9051/api/health
+
+**Default Credentials:**
+- Username: `netviz_admin`
+- Password: `V3ry$trongAdm1n!2025`
+
+**Troubleshooting:**
+```bash
+# Check status
+./setup-app5.sh status
+
+# View logs
+tail -f app5-device-manager/logs/backend.log
+tail -f app5-device-manager/logs/frontend.log
+
+# Force restart
+cd app5-device-manager && ./stop.sh && ./start.sh --force
+```
 
 ---
 
