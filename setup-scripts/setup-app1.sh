@@ -72,6 +72,15 @@ check_port() {
 }
 
 #-------------------------------------------------------------------------------
+# Generate secure credentials
+#-------------------------------------------------------------------------------
+generate_credentials() {
+    local JWT_SECRET=$(openssl rand -hex 32 2>/dev/null)
+    local ADMIN_PASS="V3ry\$trongAdm1n!$(date +%Y)"
+    echo "$JWT_SECRET|$ADMIN_PASS"
+}
+
+#-------------------------------------------------------------------------------
 # Install Impact Planner
 #-------------------------------------------------------------------------------
 install_app() {
@@ -87,6 +96,38 @@ install_app() {
 
         log_step "Installing dependencies..."
         ./ospf-planner.sh deps
+
+        # Create server .env file with correct port
+        log_step "Configuring server environment..."
+        local creds=$(generate_credentials)
+        local JWT_SECRET=$(echo "$creds" | cut -d'|' -f1)
+        local ADMIN_PASS=$(echo "$creds" | cut -d'|' -f2)
+        local DB_USER=$(whoami)
+
+        cat > "$APP1_DIR/server/.env" << EOF
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ospf_planner
+DB_USER=$DB_USER
+DB_PASSWORD=
+
+# Server Configuration
+PORT=$BACKEND_PORT
+NODE_ENV=development
+SERVER_HOST=0.0.0.0
+
+# IP Whitelist - Allow all IPs (development mode)
+ALLOWED_IPS=0.0.0.0
+
+# JWT Configuration
+JWT_SECRET=$JWT_SECRET
+JWT_EXPIRES_IN=7d
+
+# CORS - Allow all origins
+CORS_ORIGINS=*
+EOF
+        log_success "Server .env configured (port: $BACKEND_PORT)"
 
         log_success "Installation completed"
     else

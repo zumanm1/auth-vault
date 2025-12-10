@@ -124,7 +124,7 @@ NODE_ENV=development
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=$DB_NAME
-DB_USER=postgres
+DB_USER=$(whoami)
 DB_PASSWORD=
 
 #-------------------------------------------------------------------------------
