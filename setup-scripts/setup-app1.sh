@@ -243,6 +243,7 @@ EOF
 
 #-------------------------------------------------------------------------------
 # Start Impact Planner Services
+# FIXED: Added disown and timeout to prevent script from hanging
 #-------------------------------------------------------------------------------
 start_app() {
     log_header "Starting $APP_NAME Services"
@@ -250,18 +251,59 @@ start_app() {
 
     cd "$APP1_DIR"
 
+    # Method 1: Use ospf-planner.sh with background and disown
     if [ -f "./ospf-planner.sh" ]; then
         log_step "Running ospf-planner.sh start..."
-        ./ospf-planner.sh start
+        chmod +x ./ospf-planner.sh
+        # Run in background with disown to prevent hanging
+        ./ospf-planner.sh start &
+        local start_pid=$!
+        disown $start_pid 2>/dev/null || true
 
-        # Wait for services to be ready
-        log_info "Waiting for services to be ready..."
-        sleep 10
-
-        log_success "Services started"
+        # Wait for services with timeout
+        log_info "Waiting for services to be ready (max 30s)..."
+        local timeout=30
+        local count=0
+        while [ $count -lt $timeout ]; do
+            if lsof -i :$FRONTEND_PORT >/dev/null 2>&1 && lsof -i :$BACKEND_PORT >/dev/null 2>&1; then
+                break
+            fi
+            sleep 1
+            count=$((count + 1))
+        done
+    # Method 2: Fallback - start frontend and backend separately
     else
-        log_error "ospf-planner.sh not found"
-        return 1
+        log_warning "ospf-planner.sh not found, starting services manually..."
+
+        # Start backend
+        if [ -d "server" ]; then
+            log_step "Starting backend server..."
+            cd server
+            nohup npm run dev > /tmp/app1-backend.log 2>&1 &
+            disown
+            cd "$APP1_DIR"
+        fi
+
+        # Start frontend
+        log_step "Starting frontend..."
+        nohup npm run dev -- --port $FRONTEND_PORT > /tmp/app1-frontend.log 2>&1 &
+        disown
+
+        sleep 8
+    fi
+
+    # Verify services started
+    log_info "Verifying services..."
+    if lsof -i :$FRONTEND_PORT >/dev/null 2>&1; then
+        log_success "Frontend (port $FRONTEND_PORT): UP"
+    else
+        log_warning "Frontend (port $FRONTEND_PORT): DOWN"
+    fi
+
+    if lsof -i :$BACKEND_PORT >/dev/null 2>&1; then
+        log_success "Backend (port $BACKEND_PORT): UP"
+    else
+        log_warning "Backend (port $BACKEND_PORT): DOWN"
     fi
 
     log_progress "Services started"

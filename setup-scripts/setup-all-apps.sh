@@ -110,6 +110,49 @@ check_port() {
 }
 
 #-------------------------------------------------------------------------------
+# Run setup script with timeout (FIXED: prevents hanging)
+# Usage: run_with_timeout <timeout_seconds> <script_path> <args>
+#-------------------------------------------------------------------------------
+APP_SETUP_TIMEOUT=${APP_SETUP_TIMEOUT:-300}  # Default 5 minutes per app
+
+run_with_timeout() {
+    local timeout_sec=$1
+    local script_path=$2
+    shift 2
+    local args="$@"
+
+    # Check if 'timeout' command exists (GNU coreutils)
+    if command -v timeout &>/dev/null; then
+        timeout --foreground "$timeout_sec" "$script_path" $args
+        return $?
+    # Check if 'gtimeout' exists (macOS with coreutils)
+    elif command -v gtimeout &>/dev/null; then
+        gtimeout --foreground "$timeout_sec" "$script_path" $args
+        return $?
+    else
+        # Fallback: run with background process and manual timeout
+        "$script_path" $args &
+        local pid=$!
+
+        local count=0
+        while kill -0 $pid 2>/dev/null && [ $count -lt $timeout_sec ]; do
+            sleep 1
+            count=$((count + 1))
+        done
+
+        if kill -0 $pid 2>/dev/null; then
+            log_warning "Setup script timed out after ${timeout_sec}s, terminating..."
+            kill -9 $pid 2>/dev/null
+            wait $pid 2>/dev/null
+            return 124  # Same exit code as 'timeout' command
+        fi
+
+        wait $pid
+        return $?
+    fi
+}
+
+#-------------------------------------------------------------------------------
 # Setup Individual Apps (with progress tracking)
 #-------------------------------------------------------------------------------
 setup_app0() {
@@ -137,12 +180,19 @@ setup_app1() {
 
     if [ -f "$SCRIPT_DIR/setup-app1.sh" ]; then
         chmod +x "$SCRIPT_DIR/setup-app1.sh"
-        if "$SCRIPT_DIR/setup-app1.sh" setup; then
+        # FIXED: Use timeout to prevent hanging
+        if run_with_timeout $APP_SETUP_TIMEOUT "$SCRIPT_DIR/setup-app1.sh" setup; then
             APP_STATUS[1]="✅ UP"
             log_success "App1 - Impact Planner setup completed"
         else
-            APP_STATUS[1]="❌ FAILED"
-            log_error "App1 - Impact Planner setup failed"
+            local exit_code=$?
+            if [ $exit_code -eq 124 ]; then
+                APP_STATUS[1]="⚠️ TIMEOUT"
+                log_warning "App1 - Impact Planner setup timed out (services may still be starting)"
+            else
+                APP_STATUS[1]="❌ FAILED"
+                log_error "App1 - Impact Planner setup failed"
+            fi
         fi
     else
         APP_STATUS[1]="❌ MISSING"
@@ -194,12 +244,19 @@ setup_app4() {
 
     if [ -f "$SCRIPT_DIR/setup-app4.sh" ]; then
         chmod +x "$SCRIPT_DIR/setup-app4.sh"
-        if "$SCRIPT_DIR/setup-app4.sh" setup; then
+        # FIXED: Use timeout to prevent hanging
+        if run_with_timeout $APP_SETUP_TIMEOUT "$SCRIPT_DIR/setup-app4.sh" setup; then
             APP_STATUS[4]="✅ UP"
             log_success "App4 - Tempo-X setup completed"
         else
-            APP_STATUS[4]="❌ FAILED"
-            log_error "App4 - Tempo-X setup failed"
+            local exit_code=$?
+            if [ $exit_code -eq 124 ]; then
+                APP_STATUS[4]="⚠️ TIMEOUT"
+                log_warning "App4 - Tempo-X setup timed out (services may still be starting)"
+            else
+                APP_STATUS[4]="❌ FAILED"
+                log_error "App4 - Tempo-X setup failed"
+            fi
         fi
     else
         APP_STATUS[4]="❌ MISSING"

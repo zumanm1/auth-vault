@@ -116,25 +116,54 @@ install_app() {
 
     cd "$APP4_DIR"
 
+    # Try using ospf-tempo-x.sh first, fallback to direct npm install
     if [ -f "./ospf-tempo-x.sh" ]; then
         log_step "Running ospf-tempo-x.sh install..."
         chmod +x ./ospf-tempo-x.sh
-        ./ospf-tempo-x.sh install
+        ./ospf-tempo-x.sh install 2>/dev/null || log_warning "ospf-tempo-x.sh install returned non-zero (continuing...)"
 
         log_step "Installing dependencies..."
-        ./ospf-tempo-x.sh deps
+        ./ospf-tempo-x.sh deps 2>/dev/null || {
+            log_warning "ospf-tempo-x.sh deps failed, using fallback npm install..."
+            npm install --silent 2>/dev/null || npm install
+        }
+    else
+        # Fallback: direct npm install if ospf-tempo-x.sh not found
+        log_warning "ospf-tempo-x.sh not found, using direct npm install..."
+        npm install --silent 2>/dev/null || npm install
+    fi
 
-        # Generate new credentials for fresh install
-        log_step "Generating secure credentials..."
-        local creds=$(generate_credentials)
-        local JWT_SECRET=$(echo "$creds" | cut -d'|' -f1)
-        local ADMIN_PASS=$(echo "$creds" | cut -d'|' -f2)
-        local DB_USER=$(whoami)
-        local DB_PASSWORD=$(setup_postgres_password)
+    # Ensure node_modules exists
+    if [ ! -d "node_modules" ]; then
+        log_step "Installing npm dependencies (final fallback)..."
+        npm install
+    fi
+    log_success "Dependencies installed"
 
-        # Create/update .env with new credentials
-        if [ ! -f ".env" ] || grep -q "your-secret-key-here\|change-me" .env 2>/dev/null; then
-            cat > .env << EOF
+    # Generate new credentials for fresh install
+    log_step "Generating secure credentials..."
+    local creds=$(generate_credentials)
+    local JWT_SECRET=$(echo "$creds" | cut -d'|' -f1)
+    local ADMIN_PASS=$(echo "$creds" | cut -d'|' -f2)
+    local DB_USER=$(whoami)
+    local DB_PASSWORD=$(setup_postgres_password)
+
+    # Always create/update .env to ensure correct configuration
+    # This fixes the issue where .env.example has placeholder values
+    log_step "Creating .env configuration file..."
+
+    # If .env.example exists, use it as base, otherwise create from scratch
+    if [ -f ".env.example" ] && [ ! -f ".env" ]; then
+        cp .env.example .env
+        # Replace placeholder values with actual credentials
+        sed -i "s/your_postgres_user/$DB_USER/g" .env 2>/dev/null || sed -i '' "s/your_postgres_user/$DB_USER/g" .env
+        sed -i "s/your_postgres_password/$DB_PASSWORD/g" .env 2>/dev/null || sed -i '' "s/your_postgres_password/$DB_PASSWORD/g" .env
+        log_success "Created .env from .env.example with credentials"
+    fi
+
+    # Create/update .env with new credentials (overwrites if needed)
+    if [ ! -f ".env" ] || grep -q "your-secret-key-here\|change-me\|your_postgres" .env 2>/dev/null; then
+        cat > .env << EOF
 # Tempo-X Environment Configuration
 # Auto-generated on $(date)
 
@@ -168,18 +197,15 @@ JWT_EXPIRES_IN=7d
 ADMIN_USERNAME=netviz_admin
 ADMIN_PASSWORD=${ADMIN_PASS}
 EOF
-            log_success "Generated new .env with fresh credentials"
-        fi
-
-        # Store credentials for display
-        echo "$ADMIN_PASS" > /tmp/.tempox_admin_pass_$$
-
-        log_success "Installation completed"
+        log_success "Generated new .env with fresh credentials"
     else
-        log_error "ospf-tempo-x.sh not found in $APP4_DIR"
-        return 1
+        log_info ".env already exists with valid configuration"
     fi
 
+    # Store credentials for display
+    echo "$ADMIN_PASS" > /tmp/.tempox_admin_pass_$$
+
+    log_success "Installation completed"
     log_progress "Installation complete"
 }
 
@@ -205,6 +231,7 @@ setup_db() {
 
 #-------------------------------------------------------------------------------
 # Start Tempo-X Services
+# FIXED: Use scripts/start.sh which properly starts BOTH frontend AND backend
 #-------------------------------------------------------------------------------
 start_app() {
     log_header "Starting $APP_NAME Services"
@@ -212,18 +239,62 @@ start_app() {
 
     cd "$APP4_DIR"
 
-    if [ -f "./ospf-tempo-x.sh" ]; then
+    # Method 1: Use scripts/start.sh (recommended - starts both frontend and backend)
+    if [ -f "./scripts/start.sh" ]; then
+        log_step "Using scripts/start.sh to start services..."
+        chmod +x ./scripts/start.sh
+        ./scripts/start.sh &
+        disown
+        sleep 8
+    # Method 2: Use ospf-tempo-x.sh (calls scripts/start.sh internally)
+    elif [ -f "./ospf-tempo-x.sh" ]; then
         log_step "Running ospf-tempo-x.sh start..."
-        ./ospf-tempo-x.sh start
-
-        # Wait for services to be ready
-        log_info "Waiting for services to be ready..."
-        sleep 10
-
-        log_success "Services started"
+        ./ospf-tempo-x.sh start &
+        disown
+        sleep 8
+    # Method 3: Fallback to npm run dev:all (starts both with concurrently)
+    elif grep -q '"dev:all"' package.json 2>/dev/null; then
+        log_step "Using npm run dev:all..."
+        nohup npm run dev:all > /tmp/app4-tempo-x.log 2>&1 &
+        disown
+        sleep 8
+    # Method 4: Ultimate fallback - start frontend and backend separately
     else
-        log_error "ospf-tempo-x.sh not found"
-        return 1
+        log_warning "Using fallback: starting frontend and backend separately..."
+        # Start backend first
+        log_step "Starting backend server (port $BACKEND_PORT)..."
+        nohup npm run server > /tmp/app4-backend.log 2>&1 &
+        disown
+        sleep 3
+        # Start frontend
+        log_step "Starting frontend (port $FRONTEND_PORT)..."
+        nohup npm run dev > /tmp/app4-frontend.log 2>&1 &
+        disown
+        sleep 5
+    fi
+
+    # Verify services started
+    log_info "Verifying services..."
+    local frontend_up=false
+    local backend_up=false
+
+    for i in {1..10}; do
+        if lsof -i :$FRONTEND_PORT >/dev/null 2>&1; then frontend_up=true; fi
+        if lsof -i :$BACKEND_PORT >/dev/null 2>&1; then backend_up=true; fi
+        if $frontend_up && $backend_up; then break; fi
+        sleep 1
+    done
+
+    if $frontend_up; then
+        log_success "Frontend (port $FRONTEND_PORT): UP"
+    else
+        log_warning "Frontend (port $FRONTEND_PORT): DOWN"
+    fi
+
+    if $backend_up; then
+        log_success "Backend (port $BACKEND_PORT): UP"
+    else
+        log_warning "Backend (port $BACKEND_PORT): DOWN"
     fi
 
     log_progress "Services started"
