@@ -45,6 +45,7 @@ sudo -u postgres psql -c "CREATE USER $(whoami) WITH PASSWORD '$(whoami)' CREATE
 
 | Step | Action | Command | Verification |
 |------|--------|---------|--------------|
+| **0** | Check & install prerequisites | See commands below | All versions shown correctly |
 | **1** | Delete existing repo (if any) | `cd ~ && rm -rf the-6-apps` | `ls ~/the-6-apps` shows "No such file" |
 | **2** | Create & enter directory | `mkdir -p the-6-apps && cd the-6-apps` | `pwd` shows `~/the-6-apps` |
 | **3** | Clone App0 (Auth-Vault) | `git clone https://github.com/zumanm1/auth-vault.git app0-auth-vault` | `ls app0-auth-vault/` shows files |
@@ -52,6 +53,27 @@ sudo -u postgres psql -c "CREATE USER $(whoami) WITH PASSWORD '$(whoami)' CREATE
 | **5** | Install all apps | `cd setup-scripts && ./setup-all-apps.sh setup` | No errors in output |
 | **6** | Start all apps | `./start-all-apps.sh` | All services starting |
 | **7** | Validate all apps | `./validate-all-apps.sh` | 13 ports UP, validation passes |
+
+#### Step 0: Check & Install Prerequisites
+
+```bash
+# Check what's missing
+echo "=== Checking Prerequisites ===" && \
+echo "Git: $(git --version 2>/dev/null || echo 'MISSING')" && \
+echo "Node: $(node -v 2>/dev/null || echo 'MISSING')" && \
+echo "npm: $(npm -v 2>/dev/null || echo 'MISSING')" && \
+echo "PostgreSQL: $(psql --version 2>/dev/null || echo 'MISSING')" && \
+echo "Java: $(java -version 2>&1 | head -1 || echo 'MISSING')"
+
+# Install any missing prerequisites (run as needed)
+sudo apt update
+sudo apt install -y git nodejs npm postgresql openjdk-17-jdk
+
+# Start PostgreSQL and setup user
+sudo systemctl start postgresql && sudo systemctl enable postgresql
+sudo -u postgres psql -c "ALTER USER $(whoami) WITH PASSWORD '$(whoami)';" 2>/dev/null || \
+sudo -u postgres psql -c "CREATE USER $(whoami) WITH PASSWORD '$(whoami)' CREATEDB;"
+```
 
 ### Quick Commands Reference
 
