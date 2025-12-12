@@ -89,7 +89,8 @@ setup_postgres_password() {
     local DB_USER=$(whoami)
     local DB_PASS="${DB_USER}"  # Use username as default password for simplicity
 
-    log_step "Setting up PostgreSQL password for user: $DB_USER"
+    # Log to stderr so it doesn't get captured by command substitution
+    echo -e "${BLUE}[STEP]${NC} Setting up PostgreSQL password for user: $DB_USER" >&2
 
     # Check if we can connect without password (peer auth)
     if sudo -u postgres psql -c "SELECT 1" >/dev/null 2>&1; then
@@ -98,11 +99,11 @@ setup_postgres_password() {
             # User might not exist, create it
             sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS' CREATEDB;" >/dev/null 2>&1 || true
         }
-        log_success "PostgreSQL password configured for user: $DB_USER"
+        echo -e "${GREEN}[SUCCESS]${NC} PostgreSQL password configured for user: $DB_USER" >&2
         echo "$DB_PASS"
     else
-        log_warning "Could not configure PostgreSQL password (sudo access may be required)"
-        echo ""
+        echo -e "${YELLOW}[WARNING]${NC} Could not configure PostgreSQL password (sudo access may be required)" >&2
+        echo "$DB_PASS"  # Still return the password even if we couldn't set it
     fi
 }
 
