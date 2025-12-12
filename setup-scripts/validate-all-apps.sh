@@ -1,4 +1,4 @@
-#!/opt/homebrew/bin/bash
+#!/usr/bin/env bash
 #===============================================================================
 # OSPF Suite - Comprehensive Validation Script
 # Purpose: Validate all apps (App0-App5) are running correctly

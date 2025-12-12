@@ -1,4 +1,4 @@
-#!/opt/homebrew/bin/bash
+#!/usr/bin/env bash
 #===============================================================================
 # Stop Script for All OSPF Apps (App0 - App5)
 # Purpose: Stop all services gracefully

@@ -95,6 +95,30 @@ generate_credentials() {
 }
 
 #-------------------------------------------------------------------------------
+# Setup PostgreSQL password for current user
+#-------------------------------------------------------------------------------
+setup_postgres_password() {
+    local DB_USER=$(whoami)
+    local DB_PASS="${DB_USER}"  # Use username as default password for simplicity
+
+    log_step "Setting up PostgreSQL password for user: $DB_USER"
+
+    # Check if we can connect without password (peer auth)
+    if sudo -u postgres psql -c "SELECT 1" >/dev/null 2>&1; then
+        # Set password for the user
+        sudo -u postgres psql -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASS';" >/dev/null 2>&1 || {
+            # User might not exist, create it
+            sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS' CREATEDB;" >/dev/null 2>&1 || true
+        }
+        log_success "PostgreSQL password configured for user: $DB_USER"
+        echo "$DB_PASS"
+    else
+        log_warning "Could not configure PostgreSQL password (sudo access may be required)"
+        echo ""
+    fi
+}
+
+#-------------------------------------------------------------------------------
 # Clone or verify repository
 #-------------------------------------------------------------------------------
 ensure_repo() {
@@ -162,6 +186,7 @@ install_app() {
         local JWT_SECRET=$(echo "$creds" | cut -d'|' -f1)
         local ADMIN_PASS=$(echo "$creds" | cut -d'|' -f2)
         local DB_USER=$(whoami)
+        local DB_PASSWORD=$(setup_postgres_password)
 
         mkdir -p "$APP1_DIR/server"
         cat > "$APP1_DIR/server/.env" << EOF
@@ -170,7 +195,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=$DB_NAME
 DB_USER=$DB_USER
-DB_PASSWORD=
+DB_PASSWORD=$DB_PASSWORD
 
 # Server Configuration
 PORT=$BACKEND_PORT

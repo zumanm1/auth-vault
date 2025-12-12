@@ -1,4 +1,4 @@
-#!/opt/homebrew/bin/bash
+#!/usr/bin/env bash
 #===============================================================================
 # Start Script for All OSPF Apps (App0 - App5)
 # Purpose: Start all services in the correct order
