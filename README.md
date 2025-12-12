@@ -7,11 +7,39 @@
 Use this guide to install the complete OSPF Suite on a fresh Ubuntu server. Each step should be executed manually and verified before proceeding to the next.
 
 ### Prerequisites
+
+**Required packages for Ubuntu 20.04+:**
+
+```bash
+# Update package list
+sudo apt update
+
+# Install all prerequisites in one command
+sudo apt install -y git nodejs npm postgresql openjdk-17-jdk
+
+# Verify installations
+git --version      # Should show: git version 2.x+
+node -v            # Should show: v18+ (v20+ recommended)
+npm -v             # Should show: 9+
+psql --version     # Should show: 14+
+java -version      # Should show: openjdk 17+
+
+# Ensure PostgreSQL is running
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+# Set up PostgreSQL user (uses your Linux username as password)
+sudo -u postgres psql -c "ALTER USER $(whoami) WITH PASSWORD '$(whoami)';" 2>/dev/null || \
+sudo -u postgres psql -c "CREATE USER $(whoami) WITH PASSWORD '$(whoami)' CREATEDB;"
+```
+
+**Minimum Requirements:**
 - Ubuntu 20.04+ or compatible Linux distribution
-- Git installed (`sudo apt install git`)
-- Node.js v18+ (`sudo apt install nodejs npm` or use nvm)
-- PostgreSQL 14+ (`sudo apt install postgresql`)
-- Java 17+ for Keycloak (`sudo apt install openjdk-17-jdk`)
+- Git 2.x+
+- Node.js v18+ (v20+ recommended)
+- npm 9+
+- PostgreSQL 14+
+- Java 17+ (OpenJDK) for Keycloak
 
 ### Installation Steps
 
