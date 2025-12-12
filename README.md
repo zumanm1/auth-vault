@@ -11,11 +11,23 @@ Use this guide to install the complete OSPF Suite on a fresh Ubuntu server. Each
 **Required packages for Ubuntu 20.04+:**
 
 ```bash
-# Update package list
+# Install ONLY missing prerequisites (skip if already installed)
 sudo apt update
 
-# Install all prerequisites in one command
-sudo apt install -y git nodejs npm postgresql openjdk-17-jdk
+# Git (if missing)
+command -v git >/dev/null 2>&1 || sudo apt install -y git
+
+# Node.js v20 (if missing or version < 18)
+if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -d'v' -f2 | cut -d'.' -f1)" -lt 18 ]; then
+  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+  sudo apt install -y nodejs
+fi
+
+# PostgreSQL (if missing)
+command -v psql >/dev/null 2>&1 || sudo apt install -y postgresql
+
+# Java 17 (if missing)
+command -v java >/dev/null 2>&1 || sudo apt install -y openjdk-17-jdk
 
 # Verify installations
 git --version      # Should show: git version 2.x+
@@ -54,10 +66,10 @@ sudo -u postgres psql -c "CREATE USER $(whoami) WITH PASSWORD '$(whoami)' CREATE
 | **6** | Start all apps | `./start-all-apps.sh` | All services starting |
 | **7** | Validate all apps | `./validate-all-apps.sh` | 13 ports UP, validation passes |
 
-#### Step 0: Check & Install Prerequisites
+#### Step 0: Check & Install Prerequisites (Only Installs Missing)
 
 ```bash
-# Check what's missing
+# Check what's currently installed
 echo "=== Checking Prerequisites ===" && \
 echo "Git: $(git --version 2>/dev/null || echo 'MISSING')" && \
 echo "Node: $(node -v 2>/dev/null || echo 'MISSING')" && \
@@ -65,14 +77,36 @@ echo "npm: $(npm -v 2>/dev/null || echo 'MISSING')" && \
 echo "PostgreSQL: $(psql --version 2>/dev/null || echo 'MISSING')" && \
 echo "Java: $(java -version 2>&1 | head -1 || echo 'MISSING')"
 
-# Install any missing prerequisites (run as needed)
+# Install ONLY missing prerequisites (skip if already installed)
 sudo apt update
-sudo apt install -y git nodejs npm postgresql openjdk-17-jdk
+
+# Git (if missing)
+command -v git >/dev/null 2>&1 || sudo apt install -y git
+
+# Node.js v20 (if missing or version < 18)
+if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -d'v' -f2 | cut -d'.' -f1)" -lt 18 ]; then
+  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+  sudo apt install -y nodejs
+fi
+
+# PostgreSQL (if missing)
+command -v psql >/dev/null 2>&1 || sudo apt install -y postgresql
+
+# Java 17 (if missing)
+command -v java >/dev/null 2>&1 || sudo apt install -y openjdk-17-jdk
 
 # Start PostgreSQL and setup user
 sudo systemctl start postgresql && sudo systemctl enable postgresql
 sudo -u postgres psql -c "ALTER USER $(whoami) WITH PASSWORD '$(whoami)';" 2>/dev/null || \
 sudo -u postgres psql -c "CREATE USER $(whoami) WITH PASSWORD '$(whoami)' CREATEDB;"
+
+# Verify all prerequisites installed
+echo "=== Verification ===" && \
+echo "Git: $(git --version)" && \
+echo "Node: $(node -v)" && \
+echo "npm: $(npm -v)" && \
+echo "PostgreSQL: $(psql --version)" && \
+echo "Java: $(java -version 2>&1 | head -1)"
 ```
 
 ### Quick Commands Reference
