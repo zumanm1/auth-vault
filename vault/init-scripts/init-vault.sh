@@ -10,13 +10,47 @@ echo "=============================================="
 echo "Initializing Vault for OSPF Application Suite"
 echo "=============================================="
 
-# Wait for Vault to be ready
+# Determine script and app directories
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+APP0_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Set up vault binary path - check multiple locations
+if [ -x "$APP0_DIR/bin/vault" ]; then
+    VAULT_BIN="$APP0_DIR/bin/vault"
+elif command -v vault >/dev/null 2>&1; then
+    VAULT_BIN="vault"
+else
+    echo "ERROR: vault binary not found in $APP0_DIR/bin/vault or PATH"
+    echo "Skipping Vault initialization - Vault may still be usable"
+    exit 0
+fi
+
+# Set Vault address
+export VAULT_ADDR="${VAULT_ADDR:-http://localhost:9121}"
+
+echo "Using vault binary: $VAULT_BIN"
+echo "Vault address: $VAULT_ADDR"
+
+# Wait for Vault to be ready (max 30 seconds)
 echo "Waiting for Vault to be ready..."
-until vault status > /dev/null 2>&1; do
-  echo "Vault is not ready yet, waiting..."
+WAIT_COUNT=0
+MAX_WAIT=15
+until $VAULT_BIN status > /dev/null 2>&1; do
+  WAIT_COUNT=$((WAIT_COUNT + 1))
+  if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
+    echo "WARNING: Vault not responding after ${MAX_WAIT} attempts. Skipping initialization."
+    echo "Vault may need manual initialization or the service may not be running."
+    exit 0
+  fi
+  echo "Vault is not ready yet, waiting... ($WAIT_COUNT/$MAX_WAIT)"
   sleep 2
 done
 echo "Vault is ready!"
+
+# Create alias for vault command
+vault() {
+    $VAULT_BIN "$@"
+}
 
 # ============================================================================
 # Enable Secrets Engines for Each Application
