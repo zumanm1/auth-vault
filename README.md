@@ -1,5 +1,74 @@
 # Auth-Vault: Centralized Security Infrastructure for OSPF Application Suite
 
+---
+
+## 🚀 Fresh Server Installation (Step-by-Step)
+
+Use this guide to install the complete OSPF Suite on a fresh Ubuntu server. Each step should be executed manually and verified before proceeding to the next.
+
+### Prerequisites
+- Ubuntu 20.04+ or compatible Linux distribution
+- Git installed (`sudo apt install git`)
+- Node.js v18+ (`sudo apt install nodejs npm` or use nvm)
+- PostgreSQL 14+ (`sudo apt install postgresql`)
+- Java 17+ for Keycloak (`sudo apt install openjdk-17-jdk`)
+
+### Installation Steps
+
+| Step | Action | Command | Verification |
+|------|--------|---------|--------------|
+| **1** | Delete existing repo (if any) | `cd ~ && rm -rf the-6-apps` | `ls ~/the-6-apps` shows "No such file" |
+| **2** | Create & enter directory | `mkdir -p the-6-apps && cd the-6-apps` | `pwd` shows `~/the-6-apps` |
+| **3** | Clone App0 (Auth-Vault) | `git clone https://github.com/zumanm1/auth-vault.git app0-auth-vault` | `ls app0-auth-vault/` shows files |
+| **4** | Clone all apps (App1-5) | `cd app0-auth-vault && ./manage-all-apps.sh clone` | All 6 app folders exist in `~/the-6-apps/` |
+| **5** | Install all apps | `cd setup-scripts && ./setup-all-apps.sh setup` | No errors in output |
+| **6** | Start all apps | `./start-all-apps.sh` | All services starting |
+| **7** | Validate all apps | `./validate-all-apps.sh` | 13 ports UP, validation passes |
+
+### Quick Commands Reference
+
+```bash
+# Full installation (Steps 1-7 combined)
+cd ~ && rm -rf the-6-apps && mkdir -p the-6-apps && cd the-6-apps
+git clone https://github.com/zumanm1/auth-vault.git app0-auth-vault
+cd app0-auth-vault && ./manage-all-apps.sh clone
+cd setup-scripts && ./setup-all-apps.sh setup
+./start-all-apps.sh
+./validate-all-apps.sh
+```
+
+### Port Assignments (All 13 Ports)
+
+| App | Name | Frontend Port | Backend Port | Additional |
+|-----|------|---------------|--------------|------------|
+| App0 | Auth-Vault | - | - | Keycloak: 9120, Vault: 9121 |
+| App1 | Impact Planner | 9090 | 9091 | - |
+| App2 | NetViz Pro | 9042 (Vite) | 9041 (Auth) | Gateway: 9040 |
+| App3 | NN-JSON | 9080 | 9081 | - |
+| App4 | Tempo-X | 9100 | 9101 | - |
+| App5 | Device Manager | 9050 | 9051 | - |
+
+### Expected Validation Output
+
+After running `./validate-all-apps.sh`, you should see:
+```
+Port Status: 13 ports checked
+  UP: 9040 9041 9042 9050 9051 9080 9081 9090 9091 9100 9101 9120 9121
+
+Final Verdict: SYSTEMS OPERATIONAL
+```
+
+### Troubleshooting
+
+If any step fails:
+1. Check the error message in the output
+2. Verify prerequisites are installed: `node -v`, `psql --version`, `java -version`
+3. For PostgreSQL auth issues, run: `sudo -u postgres psql -c "ALTER USER $(whoami) WITH PASSWORD '$(whoami)';"`
+4. For port conflicts: `./stop-all-apps.sh kill` then retry
+5. View logs: `tail -f ~/the-6-apps/app*/logs/*.log`
+
+---
+
 ## Introduction
 
 Auth-Vault (App0) is the **foundation** of the OSPF Application Suite. It provides centralized authentication via Keycloak and secrets management via HashiCorp Vault for all 6 applications in the suite.
