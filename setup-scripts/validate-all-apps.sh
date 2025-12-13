@@ -514,7 +514,7 @@ validate_app() {
     if [ -n "$auth_config_url" ]; then
         local auth_response=$(curl -s --connect-timeout 5 "$auth_config_url" 2>/dev/null)
         if [ -n "$auth_response" ]; then
-            local auth_mode=$(echo "$auth_response" | grep -oE '"auth[Mm]ode"\s*:\s*"[^"]*"' | head -1 | cut -d'"' -f4)
+            local auth_mode=$(echo "$auth_response" | grep -oE '"auth[Mm_]ode"\s*:\s*"[^"]*"' | head -1 | cut -d'"' -f4)
             if [ -n "$auth_mode" ]; then
                 log_check "PASS" "Auth config: mode=$auth_mode"
                 app_passed=$((app_passed + 1))
