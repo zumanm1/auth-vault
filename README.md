@@ -324,6 +324,176 @@ curl http://localhost:9121/v1/sys/health
 
 ---
 
+## 📋 Individual App Setup Options (Tested Combinations)
+
+If you don't need all 6 apps, you can run **App0 + any individual app**. All combinations below have been tested and verified on Ubuntu VM.
+
+### Tested Combinations Summary
+
+| Configuration | Ports Used | Status | Health Check Commands |
+|---------------|------------|--------|----------------------|
+| **App0 Only** | 9120, 9121 | ✅ PASS | `curl localhost:9120/health/ready && curl localhost:9121/v1/sys/health` |
+| **App0 + App1** | 9120, 9121, 9090, 9091 | ✅ PASS | Above + `curl localhost:9091/api/health` |
+| **App0 + App2** | 9120, 9121, 9040, 9041, 9042 | ✅ PASS | Above + `curl localhost:9040/api/health` |
+| **App0 + App3** | 9120, 9121, 9080, 9081 | ✅ PASS | Above + `curl localhost:9081/api/health` |
+| **App0 + App4** | 9120, 9121, 9100, 9101 | ✅ PASS | Above + `curl localhost:9101/api/health` |
+| **App0 + App5** | 9120, 9121, 9050, 9051 | ✅ PASS | Above + `curl localhost:9051/api/health` |
+
+---
+
+### App0 + App1 (Impact Planner)
+
+**Ports:** 9120, 9121, 9090, 9091
+
+```bash
+cd ~
+mkdir -p the-6-apps && cd the-6-apps
+
+# Clone App0 and App1
+git clone https://github.com/zumanm1/auth-vault.git app0-auth-vault
+git clone https://github.com/zumanm1/ospf-impact-planner.git app1-impact-planner
+
+# Start App0 (first time: install)
+cd app0-auth-vault && ./auth-vault.sh install && ./auth-vault.sh start
+cd ..
+
+# Start App1
+cd app1-impact-planner
+./ospf-planner.sh install && ./ospf-planner.sh deps && ./ospf-planner.sh db-setup
+./ospf-planner.sh start
+
+# Verify
+curl localhost:9120/health/ready
+curl localhost:9121/v1/sys/health
+curl localhost:9091/api/health
+```
+
+**Access:** http://localhost:9090
+
+---
+
+### App0 + App2 (NetViz Pro)
+
+**Ports:** 9120, 9121, 9040, 9041, 9042
+
+```bash
+cd ~
+mkdir -p the-6-apps && cd the-6-apps
+
+# Clone App0 and App2
+git clone https://github.com/zumanm1/auth-vault.git app0-auth-vault
+git clone https://github.com/zumanm1/OSPF-LL-JSON-PART1.git app2-netviz-pro
+
+# Start App0 (first time: install)
+cd app0-auth-vault && ./auth-vault.sh install && ./auth-vault.sh start
+cd ..
+
+# Start App2 (note: script is in subdirectory)
+cd app2-netviz-pro/netviz-pro
+./netviz.sh install && ./netviz.sh deps && ./netviz.sh start
+
+# Verify
+curl localhost:9120/health/ready
+curl localhost:9121/v1/sys/health
+curl localhost:9040/api/health
+```
+
+**Access:** http://localhost:9040
+
+---
+
+### App0 + App3 (NN-JSON)
+
+**Ports:** 9120, 9121, 9080, 9081
+
+```bash
+cd ~
+mkdir -p the-6-apps && cd the-6-apps
+
+# Clone App0 and App3
+git clone https://github.com/zumanm1/auth-vault.git app0-auth-vault
+git clone https://github.com/zumanm1/ospf-nn-json.git app3-nn-json
+
+# Start App0 (first time: install)
+cd app0-auth-vault && ./auth-vault.sh install && ./auth-vault.sh start
+cd ..
+
+# Start App3
+cd app3-nn-json
+./netviz.sh install && ./netviz.sh start
+
+# Verify
+curl localhost:9120/health/ready
+curl localhost:9121/v1/sys/health
+curl localhost:9081/api/health
+```
+
+**Access:** http://localhost:9080
+
+---
+
+### App0 + App4 (Tempo-X)
+
+**Ports:** 9120, 9121, 9100, 9101
+
+```bash
+cd ~
+mkdir -p the-6-apps && cd the-6-apps
+
+# Clone App0 and App4
+git clone https://github.com/zumanm1/auth-vault.git app0-auth-vault
+git clone https://github.com/zumanm1/ospf-tempo-x.git app4-tempo-x
+
+# Start App0 (first time: install)
+cd app0-auth-vault && ./auth-vault.sh install && ./auth-vault.sh start
+cd ..
+
+# Start App4
+cd app4-tempo-x
+./ospf-tempo-x.sh install && ./ospf-tempo-x.sh deps && ./ospf-tempo-x.sh db-setup
+./ospf-tempo-x.sh start
+
+# Verify
+curl localhost:9120/health/ready
+curl localhost:9121/v1/sys/health
+curl localhost:9101/api/health
+```
+
+**Access:** http://localhost:9100
+
+---
+
+### App0 + App5 (Device Manager)
+
+**Ports:** 9120, 9121, 9050, 9051
+
+```bash
+cd ~
+mkdir -p the-6-apps && cd the-6-apps
+
+# Clone App0 and App5
+git clone https://github.com/zumanm1/auth-vault.git app0-auth-vault
+git clone https://github.com/zumanm1/ospf-device-manager.git app5-device-manager
+
+# Start App0 (first time: install)
+cd app0-auth-vault && ./auth-vault.sh install && ./auth-vault.sh start
+cd ..
+
+# Start App5
+cd app5-device-manager
+./install.sh --with-deps
+./start.sh --force
+
+# Verify
+curl localhost:9120/health/ready
+curl localhost:9121/v1/sys/health
+curl localhost:9051/api/health
+```
+
+**Access:** http://localhost:9050
+
+---
+
 ### Port Assignments (All 13 Ports)
 
 | App | Name | Frontend Port | Backend Port | Additional |
