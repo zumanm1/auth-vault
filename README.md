@@ -267,6 +267,63 @@ cd setup-scripts && ./setup-all-apps.sh setup
 ./validate-all-apps.sh
 ```
 
+---
+
+## 🔐 App0 Only (Auth-Vault Standalone)
+
+If you want to run **only App0 (Auth-Vault)** without the other apps, use these commands:
+
+### Prerequisites
+
+- Ubuntu 20.04+ or compatible Linux
+- Java 17+ (for Keycloak)
+
+### Quick Install & Start
+
+```bash
+cd ~
+mkdir -p the-6-apps && cd the-6-apps
+
+# Clone App0
+git clone https://github.com/zumanm1/auth-vault.git app0-auth-vault
+cd app0-auth-vault
+
+# Install (first time only)
+./auth-vault.sh install
+
+# Start services (auto-unseals Vault)
+./auth-vault.sh start
+```
+
+### Verify App0 Running
+
+```bash
+# Check Keycloak
+curl http://localhost:9120/health/ready
+
+# Check Vault (should show sealed:false)
+curl http://localhost:9121/v1/sys/health
+```
+
+### App0 Ports
+
+| Service | Port | URL | Credentials |
+|---------|------|-----|-------------|
+| Keycloak | 9120 | http://localhost:9120/admin | admin / admin |
+| Vault | 9121 | http://localhost:9121/ui | Use root token from `data/vault/vault-keys.json` |
+
+### App0 Commands
+
+```bash
+./auth-vault.sh install   # Install Keycloak + Vault
+./auth-vault.sh start     # Start services (auto-unseals)
+./auth-vault.sh stop      # Stop services
+./auth-vault.sh status    # Check status
+./auth-vault.sh init      # Initialize Vault (if needed)
+```
+
+---
+
 ### Port Assignments (All 13 Ports)
 
 | App | Name | Frontend Port | Backend Port | Additional |
