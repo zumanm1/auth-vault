@@ -78,10 +78,10 @@ declare -A APP_HEALTH_ENDPOINTS=(
 )
 
 # Database names (for apps that use PostgreSQL)
+# Note: App5 uses SQLite, not PostgreSQL
 declare -A APP_DATABASES=(
     [1]="ospf_planner"
     [4]="ospf_tempo_x"
-    [5]="ospf_device_manager"
 )
 
 # Frontend URLs for each app
@@ -529,10 +529,46 @@ validate_app() {
         fi
     fi
 
-    # Check 5: Environment file
+    # Check 5: Environment file (app-specific paths)
     echo -e "  ${CYAN}Configuration Checks:${NC}"
-    local env_file="$app_path/.env"
-    if [ -f "$env_file" ]; then
+    local env_found=false
+    local env_file=""
+
+    # App-specific .env locations
+    case $app_num in
+        0) # App0: Auth-Vault uses data/.vault-env
+            if [ -f "$app_path/data/.vault-env" ]; then
+                env_file="$app_path/data/.vault-env"
+                env_found=true
+            elif [ -f "$app_path/.env" ]; then
+                env_file="$app_path/.env"
+                env_found=true
+            fi
+            ;;
+        1) # App1: Impact Planner uses server/.env
+            if [ -f "$app_path/server/.env" ]; then
+                env_file="$app_path/server/.env"
+                env_found=true
+            fi
+            ;;
+        2) # App2: NetViz Pro uses netviz-pro/.env.local
+            if [ -f "$app_path/netviz-pro/.env.local" ]; then
+                env_file="$app_path/netviz-pro/.env.local"
+                env_found=true
+            fi
+            ;;
+        *) # Default: check root .env or .env.local
+            if [ -f "$app_path/.env" ]; then
+                env_file="$app_path/.env"
+                env_found=true
+            elif [ -f "$app_path/.env.local" ]; then
+                env_file="$app_path/.env.local"
+                env_found=true
+            fi
+            ;;
+    esac
+
+    if [ "$env_found" = true ]; then
         log_check "PASS" ".env file exists"
         app_passed=$((app_passed + 1))
 
@@ -543,15 +579,9 @@ validate_app() {
             issues="${issues}Placeholder in .env; "
         fi
     else
-        # Check for .env.local as fallback
-        if [ -f "$app_path/.env.local" ]; then
-            log_check "PASS" ".env.local file exists"
-            app_passed=$((app_passed + 1))
-        else
-            log_check "WARN" "No .env file found"
-            app_warnings=$((app_warnings + 1))
-            issues="${issues}No .env file; "
-        fi
+        log_check "WARN" "No .env file found"
+        app_warnings=$((app_warnings + 1))
+        issues="${issues}No .env file; "
     fi
 
     # Check 6: Log files for errors (if logs exist)
