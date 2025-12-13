@@ -56,34 +56,83 @@ sudo -u postgres psql -c "CREATE USER $(whoami) WITH PASSWORD '$(whoami)' CREATE
 
 | Step | Action | Command | Verification |
 |------|--------|---------|--------------|
-| **0** | Check & install prerequisites | See commands below | All versions shown correctly |
+| **0** | Stop all services & install prerequisites | See commands below | All 13 ports free, versions correct |
 | **1** | Delete existing repo (if any) | `cd ~ && rm -rf the-6-apps` | `ls ~/the-6-apps` shows "No such file" |
 | **2** | Create & enter directory | `mkdir -p the-6-apps && cd the-6-apps` | `pwd` shows `~/the-6-apps` |
 | **3** | Clone App0 (Auth-Vault) | `git clone https://github.com/zumanm1/auth-vault.git app0-auth-vault` | `ls app0-auth-vault/` shows files |
 | **4** | Clone all apps (App1-5) | `cd app0-auth-vault && ./manage-all-apps.sh clone` | All 6 app folders exist in `~/the-6-apps/` |
 | **5** | Install all apps | `cd setup-scripts && ./setup-all-apps.sh setup` | No errors in output |
 | **6** | Start all apps | `./start-all-apps.sh` | All services starting |
-| **7** | Validate all apps | `./validate-all-apps.sh` | 13 ports UP, validation passes |
+| **7** | Validate all apps | `./validate-all-apps.sh` | 13 ports UP, 0 warnings, 0 failures |
 
-#### Step 0: Check & Install Prerequisites (Only Installs Missing)
+#### Step 0: Stop All Services & Install Prerequisites
+
+**IMPORTANT:** This step MUST be run first to ensure clean installation.
 
 ```bash
-# Check what's currently installed
-echo "=== Checking Prerequisites ===" && \
-echo "Git: $(git --version 2>/dev/null || echo 'MISSING')" && \
-echo "Node: $(node -v 2>/dev/null || echo 'MISSING')" && \
-echo "npm: $(npm -v 2>/dev/null || echo 'MISSING')" && \
-echo "PostgreSQL: $(psql --version 2>/dev/null || echo 'MISSING')" && \
-echo "Java: $(java -version 2>&1 | head -1 || echo 'MISSING')"
+# ============================================================
+# STEP 0A: STOP ALL RUNNING SERVICES (if any exist)
+# ============================================================
+echo "=== Step 0A: Stopping all OSPF services ==="
 
-# Install ONLY missing prerequisites (skip if already installed)
+# Try graceful stop first (if scripts exist)
+if [ -f ~/the-6-apps/app0-auth-vault/setup-scripts/stop-all-apps.sh ]; then
+    cd ~/the-6-apps/app0-auth-vault/setup-scripts
+    ./stop-all-apps.sh force 2>/dev/null
+    ./stop-all-apps.sh kill 2>/dev/null
+fi
+
+# ============================================================
+# STEP 0B: FORCE KILL ALL 13 OSPF PORTS
+# ============================================================
+echo "=== Step 0B: Force killing all 13 OSPF ports ==="
+
+# Kill ALL processes on OSPF ports (required before rm -rf)
+for port in 9040 9041 9042 9050 9051 9080 9081 9090 9091 9100 9101 9120 9121; do
+    echo "  Killing port $port..."
+    fuser -k $port/tcp 2>/dev/null
+    lsof -ti:$port | xargs kill -9 2>/dev/null
+done
+
+# Wait for processes to terminate
+sleep 2
+
+# Verify all ports are free
+echo "=== Verifying ports are free ==="
+for port in 9040 9041 9042 9050 9051 9080 9081 9090 9091 9100 9101 9120 9121; do
+    if lsof -i:$port >/dev/null 2>&1; then
+        echo "  WARNING: Port $port still in use!"
+    else
+        echo "  Port $port: FREE"
+    fi
+done
+
+# ============================================================
+# STEP 0C: REMOVE OLD NODE.JS AND INSTALL PREREQUISITES
+# ============================================================
+echo "=== Step 0C: Installing prerequisites ==="
+
+# Check what's currently installed
+echo "Current versions:"
+echo "  Git: $(git --version 2>/dev/null || echo 'MISSING')"
+echo "  Node: $(node -v 2>/dev/null || echo 'MISSING')"
+echo "  npm: $(npm -v 2>/dev/null || echo 'MISSING')"
+echo "  PostgreSQL: $(psql --version 2>/dev/null || echo 'MISSING')"
+echo "  Java: $(java -version 2>&1 | head -1 || echo 'MISSING')"
+
+# Update apt
 sudo apt update
 
 # Git (if missing)
 command -v git >/dev/null 2>&1 || sudo apt install -y git
 
 # Node.js v24.x (REQUIRED - remove old versions first)
+echo "  Removing old Node.js..."
 sudo apt-get remove --purge -y nodejs npm 2>/dev/null
+sudo rm -rf /usr/lib/node_modules /usr/local/lib/node_modules ~/.npm ~/.nvm 2>/dev/null
+hash -r
+
+echo "  Installing Node.js v24.x..."
 curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt install -y nodejs
 
@@ -98,19 +147,35 @@ sudo systemctl start postgresql && sudo systemctl enable postgresql
 sudo -u postgres psql -c "ALTER USER $(whoami) WITH PASSWORD '$(whoami)';" 2>/dev/null || \
 sudo -u postgres psql -c "CREATE USER $(whoami) WITH PASSWORD '$(whoami)' CREATEDB;"
 
-# Verify all prerequisites installed
-echo "=== Verification ===" && \
-echo "Git: $(git --version)" && \
-echo "Node: $(node -v)" && \
-echo "npm: $(npm -v)" && \
-echo "PostgreSQL: $(psql --version)" && \
-echo "Java: $(java -version 2>&1 | head -1)"
+# ============================================================
+# STEP 0D: VERIFY ALL PREREQUISITES
+# ============================================================
+echo ""
+echo "=== Step 0D: Verification ==="
+echo "  Git: $(git --version)"
+echo "  Node: $(node -v)"       # Should be v24.x
+echo "  npm: $(npm -v)"         # Should be 11.x
+echo "  PostgreSQL: $(psql --version)"
+echo "  Java: $(java -version 2>&1 | head -1)"
+echo ""
+echo "=== Step 0 Complete - Ready for Step 1 ==="
 ```
 
 ### Quick Commands Reference
 
 ```bash
-# Full installation (Steps 1-7 combined)
+# Full installation (Steps 0-7 combined - includes stopping services first)
+
+# Step 0: Stop all services and kill all 13 ports
+if [ -f ~/the-6-apps/app0-auth-vault/setup-scripts/stop-all-apps.sh ]; then
+    cd ~/the-6-apps/app0-auth-vault/setup-scripts && ./stop-all-apps.sh kill 2>/dev/null
+fi
+for port in 9040 9041 9042 9050 9051 9080 9081 9090 9091 9100 9101 9120 9121; do
+    fuser -k $port/tcp 2>/dev/null; lsof -ti:$port | xargs kill -9 2>/dev/null
+done
+sleep 2
+
+# Steps 1-7: Clean install
 cd ~ && rm -rf the-6-apps && mkdir -p the-6-apps && cd the-6-apps
 git clone https://github.com/zumanm1/auth-vault.git app0-auth-vault
 cd app0-auth-vault && ./manage-all-apps.sh clone
