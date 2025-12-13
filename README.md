@@ -17,11 +17,10 @@ sudo apt update
 # Git (if missing)
 command -v git >/dev/null 2>&1 || sudo apt install -y git
 
-# Node.js v20 (if missing or version < 18)
-if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -d'v' -f2 | cut -d'.' -f1)" -lt 18 ]; then
-  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-  sudo apt install -y nodejs
-fi
+# Node.js v24.x (REQUIRED - remove old versions first)
+sudo apt-get remove --purge -y nodejs npm 2>/dev/null
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+sudo apt install -y nodejs
 
 # PostgreSQL (if missing)
 command -v psql >/dev/null 2>&1 || sudo apt install -y postgresql
@@ -31,8 +30,8 @@ command -v java >/dev/null 2>&1 || sudo apt install -y openjdk-17-jdk
 
 # Verify installations
 git --version      # Should show: git version 2.x+
-node -v            # Should show: v18+ (v20+ recommended)
-npm -v             # Should show: 9+
+node -v            # Should show: v24.x
+npm -v             # Should show: 11.x
 psql --version     # Should show: 14+
 java -version      # Should show: openjdk 17+
 
@@ -48,8 +47,8 @@ sudo -u postgres psql -c "CREATE USER $(whoami) WITH PASSWORD '$(whoami)' CREATE
 **Minimum Requirements:**
 - Ubuntu 20.04+ or compatible Linux distribution
 - Git 2.x+
-- Node.js v18+ (v20+ recommended)
-- npm 9+
+- Node.js v24.x (REQUIRED)
+- npm 11.x
 - PostgreSQL 14+
 - Java 17+ (OpenJDK) for Keycloak
 
@@ -83,11 +82,10 @@ sudo apt update
 # Git (if missing)
 command -v git >/dev/null 2>&1 || sudo apt install -y git
 
-# Node.js v20 (if missing or version < 18)
-if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -d'v' -f2 | cut -d'.' -f1)" -lt 18 ]; then
-  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-  sudo apt install -y nodejs
-fi
+# Node.js v24.x (REQUIRED - remove old versions first)
+sudo apt-get remove --purge -y nodejs npm 2>/dev/null
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+sudo apt install -y nodejs
 
 # PostgreSQL (if missing)
 command -v psql >/dev/null 2>&1 || sudo apt install -y postgresql
@@ -341,7 +339,7 @@ curl http://localhost:9121/v1/sys/health
 - PostgreSQL database backend
 
 **Prerequisites:**
-- Node.js v18+ (v20+ recommended)
+- Node.js v24.x (REQUIRED)
 - PostgreSQL 14+
 - npm
 
@@ -451,7 +449,7 @@ curl http://localhost:9040/health
 - Auth-Vault integration support
 
 **Prerequisites:**
-- Node.js v18+ (v20+ recommended)
+- Node.js v24.x (REQUIRED)
 - npm
 
 ```bash
@@ -515,7 +513,7 @@ tail -f app3-nn-json/logs/*.log
 - Auth-Vault integration support
 
 **Prerequisites:**
-- Node.js v18+ (v20+ recommended)
+- Node.js v24.x (REQUIRED)
 - PostgreSQL 14+
 - npm
 - nvm (optional, for isolated Node.js)
@@ -586,7 +584,7 @@ cd app4-tempo-x && ./ospf-tempo-x.sh restart
 - Auth-Vault integration for secure credentials
 
 **Prerequisites:**
-- Node.js v18+ (v20+ recommended)
+- Node.js v24.x (REQUIRED)
 - Python 3.10+
 - pip or uv (Python package manager)
 
