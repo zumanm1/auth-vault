@@ -232,7 +232,8 @@ check_postgres_running() {
 check_frontend() {
     local url=$1
     local response_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "$url" 2>/dev/null)
-    [ "$response_code" = "200" ]
+    # Accept 200 (OK), 301/302 (redirects - e.g., Keycloak redirects to login), and 304 (not modified)
+    [[ "$response_code" =~ ^(200|301|302|304)$ ]]
 }
 
 #-------------------------------------------------------------------------------
