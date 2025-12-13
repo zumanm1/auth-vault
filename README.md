@@ -161,6 +161,89 @@ echo ""
 echo "=== Step 0 Complete - Ready for Step 1 ==="
 ```
 
+#### Step 1: Delete Existing Repo
+
+```bash
+cd ~ && rm -rf the-6-apps
+```
+
+**Verify:** `ls ~/the-6-apps` should show "No such file or directory"
+
+---
+
+#### Step 2: Create & Enter Directory
+
+```bash
+mkdir -p ~/the-6-apps && cd ~/the-6-apps
+```
+
+**Verify:** `pwd` should show `/home/<user>/the-6-apps`
+
+---
+
+#### Step 3: Clone App0 (Auth-Vault)
+
+```bash
+git clone https://github.com/zumanm1/auth-vault.git app0-auth-vault
+```
+
+**Verify:** `ls app0-auth-vault/` should show files including `README.md`, `manage-all-apps.sh`, `setup-scripts/`
+
+---
+
+#### Step 4: Clone All Apps (App1-5)
+
+```bash
+cd ~/the-6-apps/app0-auth-vault
+./manage-all-apps.sh clone
+```
+
+**Verify:** `ls ~/the-6-apps/` should show 6 folders:
+- `app0-auth-vault`
+- `app1-impact-planner`
+- `app2-netviz-pro`
+- `app3-nn-json`
+- `app4-tempo-x`
+- `app5-device-manager`
+
+---
+
+#### Step 5: Setup All Apps
+
+```bash
+cd ~/the-6-apps/app0-auth-vault/setup-scripts
+./setup-all-apps.sh setup
+```
+
+**Verify:** No errors in output. Each app should show `[SUCCESS]` messages.
+
+---
+
+#### Step 6: Start All Apps
+
+```bash
+cd ~/the-6-apps/app0-auth-vault/setup-scripts
+./start-all-apps.sh
+```
+
+**Verify:** All services should start. Look for "UP" status for each port.
+
+---
+
+#### Step 7: Validate All Apps
+
+```bash
+cd ~/the-6-apps/app0-auth-vault/setup-scripts
+./validate-all-apps.sh
+```
+
+**Expected Result:**
+- **13 ports UP:** 9040, 9041, 9042, 9050, 9051, 9080, 9081, 9090, 9091, 9100, 9101, 9120, 9121
+- **0 warnings, 0 failures**
+- **Final Verdict: ALL SYSTEMS OPERATIONAL**
+
+---
+
 ### Quick Commands Reference
 
 ```bash
