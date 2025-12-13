@@ -712,6 +712,67 @@ start_vault() {
     log_success "Vault started (PID: ${pid})"
     log_info "Vault URL: ${VAULT_URL}"
     log_info "Vault UI: ${VAULT_URL}/ui"
+
+    # Auto-unseal if keys exist
+    sleep 2
+    unseal_vault_auto
+}
+
+unseal_vault_auto() {
+    local vault_bin="${BIN_DIR}/vault"
+    local keys_file="${DATA_DIR}/vault/vault-keys.json"
+
+    export VAULT_ADDR="${VAULT_URL}"
+
+    # Check if Vault is responding
+    if ! curl -s "${VAULT_URL}/v1/sys/health" >/dev/null 2>&1; then
+        log_info "Waiting for Vault to be ready..."
+        local attempts=0
+        while [ $attempts -lt 30 ]; do
+            if curl -s "${VAULT_URL}/v1/sys/health" >/dev/null 2>&1; then
+                break
+            fi
+            sleep 1
+            attempts=$((attempts + 1))
+        done
+    fi
+
+    # Check if already unsealed
+    local status
+    status=$(curl -s "${VAULT_URL}/v1/sys/health" 2>/dev/null || echo '{}')
+    local sealed
+    sealed=$(echo "${status}" | grep -o '"sealed":true' || echo "")
+
+    if [ -z "${sealed}" ]; then
+        log_info "Vault is already unsealed or not initialized"
+        return 0
+    fi
+
+    # Check if keys file exists
+    if [ ! -f "${keys_file}" ]; then
+        log_warning "Vault keys file not found. Please run: ./auth-vault.sh init"
+        return 1
+    fi
+
+    # Read unseal key
+    local unseal_key
+    unseal_key=$(jq -r '.unseal_keys_b64[0]' "${keys_file}" 2>/dev/null)
+
+    if [ -z "${unseal_key}" ] || [ "${unseal_key}" = "null" ]; then
+        log_warning "Could not read unseal key from ${keys_file}"
+        return 1
+    fi
+
+    log_info "Auto-unsealing Vault..."
+
+    # Unseal Vault
+    if "${vault_bin}" operator unseal "${unseal_key}" >/dev/null 2>&1; then
+        log_success "Vault auto-unsealed successfully"
+        return 0
+    else
+        log_warning "Failed to auto-unseal Vault"
+        return 1
+    fi
 }
 
 stop_keycloak() {
