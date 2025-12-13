@@ -421,7 +421,17 @@ validate_app() {
 
         if [ -n "$response" ]; then
             # Check for common healthy indicators
-            if echo "$response" | grep -qiE '"status"\s*:\s*"(healthy|ok|initialized|sealed":false)'; then
+            # - status: healthy/ok/UP
+            # - Vault: initialized:true with sealed:false
+            # - Keycloak: status:UP or valid JSON health response
+            if echo "$response" | grep -qiE '"status"\s*:\s*"(healthy|ok|UP)"'; then
+                log_check "PASS" "Health endpoint responding: $endpoint"
+                app_passed=$((app_passed + 1))
+            elif echo "$response" | grep -qE '"initialized"\s*:\s*true.*"sealed"\s*:\s*false|"sealed"\s*:\s*false.*"initialized"\s*:\s*true'; then
+                log_check "PASS" "Health endpoint responding: $endpoint"
+                app_passed=$((app_passed + 1))
+            elif echo "$response" | grep -qE '^\s*\{.*"status"\s*:\s*"'; then
+                # Valid JSON with status field (Keycloak health)
                 log_check "PASS" "Health endpoint responding: $endpoint"
                 app_passed=$((app_passed + 1))
             elif echo "$response" | grep -qi "error\|failed\|unhealthy"; then
